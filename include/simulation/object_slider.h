@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <algorithm>
 #include <Eigen/Dense>
 #include "diagram/diagram_all.h"
 
@@ -48,19 +49,19 @@ public:
     }
 
     // Apply q to all sliders
-    void apply_q(const Eigen::VectorXf& q);
+    void apply_q(const std::vector<float>& q);
 
     // Apply v to all sliders
-    void apply_v(const Eigen::VectorXf& v);
+    void apply_v(const std::vector<float>& v);
 
     // Get combined q of all sliders
-    Eigen::VectorXf get_q() const;
+    std::vector<float> get_q() const;
 
     // Get combined v of all sliders
-    Eigen::VectorXf get_v() const;
+    std::vector<float> get_v() const;
 
     // Get radii of all sliders
-    Eigen::VectorXf get_radius() const;
+    std::vector<float> get_radius() const;
 
     // Remove a slider by index
     void remove(size_t index);

@@ -17,6 +17,9 @@ struct PolarCoordinate {
 class Diagram {
 private:
     std::vector<Eigen::Vector2f> data;
+    float normalize(const std::array<float, 2>& v) const;
+    float normalize(const std::array<float, 2>& v1, const std::array<float, 2>& v2) const;
+    std::array<float, 2> subtractArrays(const std::array<float, 2>& a, const std::array<float, 2>& b) const;
 
 public:
     Diagram();
@@ -34,17 +37,17 @@ public:
     Eigen::Matrix3f limit_constant;
 
     void initialize();
-    Eigen::Vector2f funcDiagram(float theta) const;
-    Eigen::Vector2f funcGradient(float theta) const;
-    Eigen::Vector2f point(float theta) const;
-    std::vector<Eigen::Vector2f> points(int npts = 300, float tmin = 0, float trange = 2 * M_PI) const;
-    Eigen::Vector2f tangentVector(float theta) const;
-    Eigen::Vector2f normalVector(float theta) const;
-    Eigen::Vector2f localVelocity(float theta) const;
+    std::array<float, 2> funcDiagram(float theta) const;
+    std::array<float, 2> funcGradient(float theta) const;
+    std::array<float, 2> point(float theta) const;
+    std::vector<std::array<float, 2>> points(int npts = 300, float tmin = 0, float trange = 2 * M_PI) const;
+    std::array<float, 2> tangentVector(float theta) const;
+    std::array<float, 2> normalVector(float theta) const;
+    std::array<float, 2> localVelocity(float theta) const;
     Eigen::MatrixXf localVelocityGrad(float theta, float dt, const Eigen::MatrixXf& dv = Eigen::MatrixXf::Identity(3, 3)) const;
     void genLimitConstant();
-    Eigen::Vector2f rotVector(float theta) const;
-    std::vector<float> cal_collision_data(const Diagram& diagram2) const;
+    std::array<float, 2> rotVector(float theta) const;
+    std::array<float, 3> cal_collision_data(const Diagram& diagram2) const;
 };
 
 #endif // DIAGRAM_H

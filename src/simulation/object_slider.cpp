@@ -1,6 +1,4 @@
 #include "simulation/object_slider.h"
-#include <algorithm>
-#include <stdexcept>
 
 void ObjectSlider::add(std::unique_ptr<Diagram> item) {
     sliders.push_back(std::move(item));
@@ -25,38 +23,45 @@ Diagram* ObjectSlider::operator[](size_t i) {
     return sliders[i].get();
 }
 
-void ObjectSlider::apply_q(const Eigen::VectorXf& q) {
+void ObjectSlider::apply_q(const std::vector<float>& q) {
     for (size_t i = 0; i < sliders.size(); ++i) {
-        sliders[i]->q = q.segment<3>(i * 3);
+        sliders[i]->q = {q[i * 3], q[i * 3 + 1], q[i * 3 + 2]};
     }
 }
 
-void ObjectSlider::apply_v(const Eigen::VectorXf& v) {
+void ObjectSlider::apply_v(const std::vector<float>& v) {
     for (size_t i = 0; i < sliders.size(); ++i) {
-        sliders[i]->v = v.segment<3>(i * 3);
+        sliders[i]->v = {v[i * 3], v[i * 3 + 1], v[i * 3 + 2]};
     }
 }
 
-Eigen::VectorXf ObjectSlider::get_q() const {
-    Eigen::VectorXf result(sliders.size() * 3);
-    for (size_t i = 0; i < sliders.size(); ++i) {
-        result.segment<3>(i * 3) = sliders[i]->q;
-    }
-    return result;
-}
-
-Eigen::VectorXf ObjectSlider::get_v() const {
-    Eigen::VectorXf result(sliders.size() * 3);
-    for (size_t i = 0; i < sliders.size(); ++i) {
-        result.segment<3>(i * 3) = sliders[i]->v;
+std::vector<float> ObjectSlider::get_q() const {
+    std::vector<float> result;
+    result.reserve(sliders.size() * 3);
+    for (const auto& slider : sliders) {
+        result.push_back(slider->q[0]);
+        result.push_back(slider->q[1]);
+        result.push_back(slider->q[2]);
     }
     return result;
 }
 
-Eigen::VectorXf ObjectSlider::get_radius() const {
-    Eigen::VectorXf result(sliders.size());
-    for (size_t i = 0; i < sliders.size(); ++i) {
-        result[i] = sliders[i]->radius;
+std::vector<float> ObjectSlider::get_v() const {
+    std::vector<float> result;
+    result.reserve(sliders.size() * 3);
+    for (const auto& slider : sliders) {
+        result.push_back(slider->v[0]);
+        result.push_back(slider->v[1]);
+        result.push_back(slider->v[2]);
+    }
+    return result;
+}
+
+std::vector<float> ObjectSlider::get_radius() const {
+    std::vector<float> result;
+    result.reserve(sliders.size());
+    for (const auto& slider : sliders) {
+        result.push_back(slider->radius);
     }
     return result;
 }

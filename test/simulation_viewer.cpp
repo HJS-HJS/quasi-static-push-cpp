@@ -2,7 +2,7 @@
 #include "viewer/viewer.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
-#include "simulation/param_function.h"
+// #include "simulation/param_function.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -10,14 +10,28 @@
 #include <chrono>
 #include <Eigen/Dense>
 
-Eigen::VectorXf add_vectors(const Eigen::VectorXf& a, const Eigen::VectorXf& b) {
+std::vector<float> add_vectors(const std::vector<float>& a, const std::vector<float>& b) {
     if (a.size() != b.size()) {
         throw std::invalid_argument("Vector sizes must match for addition.");
     }
-    return a + b;
+
+    std::vector<float> result(a.size());
+    std::transform(a.begin(), a.end(), b.begin(), result.begin(), std::plus<float>());
+    return result;
 }
 
-float angle(const Eigen::VectorXf& v) {
+std::array<float, 4> add_vector_array(const std::vector<float>& vec, const std::array<float, 4>& arr) {
+    if (vec.size() != 4) {
+        throw std::invalid_argument("Vector and array must have the same size");
+    }
+    std::array<float, 4> result;
+    for (size_t i = 0; i < 4; ++i) {
+        result[i] = vec[i] + arr[i];
+    }
+    return result;
+}
+
+float angle(const std::array<float, 2>& v) {
     return std::atan2(v[1], v[0]);
 }
 
@@ -42,15 +56,16 @@ int main() {
         ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 7}}, 0.15f, 0.17f, 0.04f, 0.0f, 0.0f, 0.0f);
 
         ObjectSlider empty;
-        ParamFunction param(sliders, pushers, empty);
+        // ParamFunction param(sliders, pushers, empty);
 
-        Eigen::VectorXf move(12);
-        move << 0.0f, 0.0f, 0.002f,
+        std::vector<float> move = {
+                0.0f, 0.0f, 0.002f,
                 0.0f, 0.0f, -0.001f,
                 0.0f, 0.0f, -0.005f,
-                0.0f, 0.0f, 0.005f;
+                0.0f, 0.0f, 0.005f,
+        };
 
-        Eigen::Vector4f move_pusher(0.0f, 0.0f, 0.0f, 0.05f);
+        std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.05f};
 
         // Add diagrams to viewer
         viewer.addDiagram(pushers.get_pushers(), "red");
@@ -88,10 +103,10 @@ int main() {
             }
 
             auto end1 = std::chrono::high_resolution_clock::now();
-            param.update_param();
+            // param.update_param();
             auto end = std::chrono::high_resolution_clock::now();
             // Update positions
-            pushers.apply_q(add_vectors(move_pusher, pushers.q));
+            pushers.apply_q(add_vector_array(move_pusher, pushers.q));
             sliders.apply_q(add_vectors(move, sliders.get_q()));
 
             auto end2 = std::chrono::high_resolution_clock::now();
@@ -118,6 +133,7 @@ int main() {
             }
             auto end3 = std::chrono::high_resolution_clock::now();
             // Render diagrams
+            // viewer.render();
             viewer.render(points, arrows);
 
             auto end4 = std::chrono::high_resolution_clock::now();
@@ -129,7 +145,7 @@ int main() {
             std::cout << "\n\tTime spent: " << elapsed1.count() << "s" << std::endl;
             std::cout << "\tTime spent: " << elapsed2.count() << "s" << std::endl;
             std::cout << "\tTime spent: " << elapsed3.count() << "s" << std::endl;
-            std::cout << "\tTime spent: " << elapsed4.count() << "s" << std::endl;
+            std::cout << "\tTime spent: " << elapsed4.count() << "s\tmain" << std::endl;
             std::cout << "\tTime spent: " << elapsed5.count() << "s" << std::endl;
 
             // Delay for smooth animation
