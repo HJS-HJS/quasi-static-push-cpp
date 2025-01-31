@@ -73,14 +73,33 @@ std::array<float, 2> Diagram::localVelocity(float theta) const {
     float radius_ = funcRadius(theta);
     return {v[0] + v[2] * radius_ * tangent_[0], v[1] + v[2] * radius_ * tangent_[1]};
 }
-
-Eigen::MatrixXf Diagram::localVelocityGrad(float theta, float dt, const Eigen::MatrixXf& dv) const {
+Eigen::MatrixXf Diagram::localVelocityGrad(float theta, float dt) const {
+    Eigen::MatrixXf dv = Eigen::MatrixXf::Identity(3, 3) * dt;
     std::array<float, 2> rot_vec = rotVector(theta + M_PI / 2);
     float func_r = funcRadius(theta);
 
     Eigen::MatrixXf outer_product = dv.col(2) * Eigen::RowVector2f(rot_vec[0] * func_r, rot_vec[1] * func_r);
     Eigen::MatrixXf grad = dv.leftCols<2>() + outer_product;
-    return grad;
+    return grad / dt;
+}
+Eigen::MatrixXf Diagram::localVelocityGrad(float theta, float dt, const std::array<std::array<float, 3>, 4>& dv) const {
+    std::array<float, 2> rot_vec = rotVector(theta + M_PI / 2);
+    float func_r = funcRadius(theta);
+
+    Eigen::MatrixXf dv_mat(4, 3);
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 3; ++j)
+            dv_mat(i, j) = dv[i][j];
+
+    Eigen::VectorXf dv_col2 = dv_mat.col(2);
+    Eigen::RowVector2f rot_scaled(rot_vec[0] * func_r, rot_vec[1] * func_r);
+
+    Eigen::MatrixXf outer_product = dv_col2 * rot_scaled;
+
+    Eigen::MatrixXf grad = dv_mat.leftCols(2) + outer_product;
+
+    return grad / dt;
+
 }
 
 void Diagram::genLimitConstant() {

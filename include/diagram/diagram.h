@@ -44,7 +44,8 @@ public:
     std::array<float, 2> tangentVector(float theta) const;
     std::array<float, 2> normalVector(float theta) const;
     std::array<float, 2> localVelocity(float theta) const;
-    Eigen::MatrixXf localVelocityGrad(float theta, float dt, const Eigen::MatrixXf& dv = Eigen::MatrixXf::Identity(3, 3)) const;
+    Eigen::MatrixXf localVelocityGrad(float theta, float dt) const;
+    Eigen::MatrixXf localVelocityGrad(float theta, float dt, const std::array<std::array<float, 3>, 4>& dv) const;
     void genLimitConstant();
     std::array<float, 2> rotVector(float theta) const;
     std::array<float, 3> cal_collision_data(const Diagram& diagram2) const;

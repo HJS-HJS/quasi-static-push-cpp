@@ -2,7 +2,7 @@
 #include "viewer/viewer.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
-// #include "simulation/param_function.h"
+#include "simulation/param_function.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -50,17 +50,17 @@ int main() {
 
         sliders.add(std::make_unique<Circle>(0.0, -0.5, 0.0, 0.45));
         sliders.add(std::make_unique<Circle>(0.5, 0.3, 0.0, 0.4));
-        sliders.add(std::make_unique<Circle>(-0.5, 0.3, 0.0, 0.45));
-        sliders.add(std::make_unique<Circle>(0.0, 1.1, 0.0, 0.4));
-        sliders.add(std::make_unique<Circle>(1.0, 1.1, 0.0, 0.45));
-        sliders.add(std::make_unique<Circle>(-1.0, 1.1, 0.0, 0.45));
+        // sliders.add(std::make_unique<Circle>(-0.5, 0.3, 0.0, 0.45));
+        // sliders.add(std::make_unique<Circle>(0.0, 1.1, 0.0, 0.4));
+        // sliders.add(std::make_unique<Circle>(1.0, 1.1, 0.0, 0.45));
+        // sliders.add(std::make_unique<Circle>(-1.0, 1.1, 0.0, 0.45));
 
         // Initialize pushers
-        // ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 3.141592f);
         ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f);
+        // ObjectPusher pushers(4, 90.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f);
 
         ObjectSlider empty;
-        // ParamFunction param(sliders, pushers, empty);
+        ParamFunction param(sliders, pushers, empty);
 
         // std::vector<float> move = {
         //         0.0f, 0.0f, 0.002f,
@@ -69,7 +69,7 @@ int main() {
         //         0.0f, 0.0f, 0.005f,
         // };
 
-        std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.01f};
+        std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.0f};
 
         // Add diagrams to viewer
         viewer.addDiagram(pushers.get_pushers(), "red");
@@ -107,7 +107,7 @@ int main() {
             }
 
             auto end1 = std::chrono::high_resolution_clock::now();
-            // param.update_param();
+            param.update_param();
             auto end = std::chrono::high_resolution_clock::now();
             // Update positions
             pushers.apply_q(add_vector_array(move_pusher, pushers.q));
@@ -139,14 +139,6 @@ int main() {
             // Render diagrams
             // viewer.render();
             viewer.render(points, arrows);
-
-            auto dt = pushers.pusher_dv(0.0001);
-            for(auto vec : dt){
-                for(auto vec2 : vec){
-                    std::cout << vec2[0] << " " << vec2[1] << " " << vec2[2] << std::endl;
-                }
-                std::cout << "\n";
-            }
 
             auto end4 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end4 - start;

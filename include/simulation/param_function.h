@@ -1,7 +1,13 @@
 #ifndef PARAM_FUNCTION_H
 #define PARAM_FUNCTION_H
 
+#include <vector>
+#include <array>
+#include <cmath>
+#include <algorithm>
+#include <stdexcept>
 #include <Eigen/Dense>
+#include <iostream>
 #include "diagram/diagram_all.h"
 #include "simulation/object_pusher.h"
 #include "simulation/object_slider.h"
@@ -24,18 +30,22 @@ private:
     float fbscale;
 
     int n_phi;
-    Eigen::VectorXf phi;
+
+    Eigen::VectorXf phi;  
     Eigen::MatrixXf nhat;
-    Eigen::MatrixXf vc;
     Eigen::MatrixXf vc_jac;
     Eigen::MatrixXf m_JN;
     Eigen::MatrixXf m_JT;
 
+    Eigen::MatrixXf m_mu;
+    Eigen::MatrixXf m_A;
+    Eigen::MatrixXf m_B;
+
     bool is_collision_available(const Diagram& diagram1, const Diagram& diagram2, float threshold);
     int combination(int n, int r);
 
-    Eigen::VectorXf q();
-    Eigen::VectorXf v();
+    std::vector<float> q();
+    std::vector<float> v();
 };
 
 #endif
