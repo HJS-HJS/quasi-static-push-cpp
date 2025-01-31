@@ -28,7 +28,7 @@ ObjectPusher::ObjectPusher(int n_finger, float finger_angle,
         m_q_rel.push_back({
             std::cos(-finger_angle * i + f_heading),
             std::sin(-finger_angle * i + f_heading),
-            float(finger_angle / 2) + (float(M_PI - finger_angle) * i)
+            -float(finger_angle / 2) - (float(M_PI - finger_angle) * i)
         });
     }
 
@@ -47,16 +47,16 @@ void ObjectPusher::apply_q(const std::array<float, 4>& q) {
     float sin_r = std::sin(q[2]);
 
     // Compute rotation matrix
-    Eigen::Matrix2f rot_matrix;
-    rot_matrix <<
-        std::cos(q[2]), -std::sin(q[2]),
-        std::sin(q[2]),  std::cos(q[2]);
+    // Eigen::Matrix2f rot_matrix;
+    // rot_matrix <<
+    //     std::cos(q[2]), std::sin(q[2]),
+    //     std::sin(q[2]), -std::cos(q[2]);
 
     for (size_t idx = 0; idx < pushers.size(); ++idx) {
         float rel_x = m_q_rel[idx][0] * q[3];
         float rel_y = m_q_rel[idx][1] * q[3];
-        float global_x = cos_r * rel_x - sin_r * rel_y + q[0];
-        float global_y = sin_r * rel_x + cos_r * rel_y + q[1];
+        float global_x = cos_r * rel_x + sin_r * rel_y + q[0];
+        float global_y = sin_r * rel_x - cos_r * rel_y + q[1];
         
         pushers[idx]->q = {global_x, global_y, q[2] + m_q_rel[idx][2]};
     }
@@ -79,32 +79,34 @@ void ObjectPusher::apply_v(const std::array<float, 4>& velocity) {
 }
 
 std::vector<std::array<std::array<float, 3>, 4>> ObjectPusher::pusher_dv(float dt) const {
-    std::vector<std::array<std::array<float, 3>, 4>> d_set(pushers.size(), {{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}}});
-    
-    std::array<std::array<float, 3>, 4> empty_dv = {{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f}}};
-    
-    for (auto& row : empty_dv) {
-        for (auto& elem : row) {
-            elem *= dt;
-        }
-    }
+    std::vector<std::array<std::array<float, 3>, 4>> d_set(pushers.size(),
+     {{
+        {dt  , 0.0f, 0.0f},
+        {0.0f, dt,   0.0f}, 
+        {0.0f, 0.0f, dt  }, 
+        {0.0f, 0.0f, 0.0f}
+        }});
     
     float cos_r = std::cos(q[2]);
     float sin_r = std::sin(q[2]);
-    
+
     for (size_t i = 0; i < pushers.size(); ++i) {
-        d_set[i] = empty_dv;
-        
+
         float rel_x = m_q_rel[i][0];
         float rel_y = m_q_rel[i][1];
-        float cross_x = -dt * rel_y;
-        float cross_y = dt * rel_x;
-        
+
+        // 회전 변환 적용
+        float new_rel_x = (rel_x * cos_r + rel_y * sin_r);
+        float new_rel_y = (rel_x * sin_r - rel_y * cos_r);
+
+        float cross_x = -dt * new_rel_y * q[3];
+        float cross_y = dt * new_rel_x * q[3];
+
         d_set[i][2][0] += cross_x;
         d_set[i][2][1] += cross_y;
-        
-        d_set[i][3][0] += rel_x * dt;
-        d_set[i][3][1] += rel_y * dt;
+
+        d_set[i][3][0] += new_rel_x * dt;
+        d_set[i][3][1] += new_rel_y * dt;
     }
     
     return d_set;

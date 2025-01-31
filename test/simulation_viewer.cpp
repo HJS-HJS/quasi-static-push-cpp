@@ -42,30 +42,34 @@ int main() {
         std::srand(static_cast<unsigned>(std::time(0)));
 
         // Create viewer
-        SimulationViewer viewer(1600, 1600, 1600.0f, true, true);
+        SimulationViewer viewer(1600, 1600, 400.0f, true, true);
         viewer.setGridSpacing(0.1f);
 
         // Initialize sliders
         ObjectSlider sliders;
-        sliders.add(std::make_unique<Circle>(0.5, 0.5, 0.0, 0.25));
-        sliders.add(std::make_unique<SmoothRPolygon>(-0.5, 0.5, 0.0, 0.25, 5));
-        sliders.add(std::make_unique<SuperEllipse>(-0.5, -0.5, 0, 0.25, 0.1, 7));
-        sliders.add(std::make_unique<Ellipse>(0.5f, -0.5f, 1.0f, 0.25f, 0.125f));
+
+        sliders.add(std::make_unique<Circle>(0.0, -0.5, 0.0, 0.45));
+        sliders.add(std::make_unique<Circle>(0.5, 0.3, 0.0, 0.4));
+        sliders.add(std::make_unique<Circle>(-0.5, 0.3, 0.0, 0.45));
+        sliders.add(std::make_unique<Circle>(0.0, 1.1, 0.0, 0.4));
+        sliders.add(std::make_unique<Circle>(1.0, 1.1, 0.0, 0.45));
+        sliders.add(std::make_unique<Circle>(-1.0, 1.1, 0.0, 0.45));
 
         // Initialize pushers
-        ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 7}}, 0.15f, 0.17f, 0.04f, 0.0f, 0.0f, 0.0f);
+        // ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 3.141592f);
+        ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f);
 
         ObjectSlider empty;
         // ParamFunction param(sliders, pushers, empty);
 
-        std::vector<float> move = {
-                0.0f, 0.0f, 0.002f,
-                0.0f, 0.0f, -0.001f,
-                0.0f, 0.0f, -0.005f,
-                0.0f, 0.0f, 0.005f,
-        };
+        // std::vector<float> move = {
+        //         0.0f, 0.0f, 0.002f,
+        //         0.0f, 0.0f, -0.001f,
+        //         0.0f, 0.0f, -0.005f,
+        //         0.0f, 0.0f, 0.005f,
+        // };
 
-        std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.05f};
+        std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.01f};
 
         // Add diagrams to viewer
         viewer.addDiagram(pushers.get_pushers(), "red");
@@ -107,7 +111,7 @@ int main() {
             auto end = std::chrono::high_resolution_clock::now();
             // Update positions
             pushers.apply_q(add_vector_array(move_pusher, pushers.q));
-            sliders.apply_q(add_vectors(move, sliders.get_q()));
+            // sliders.apply_q(add_vectors(move, sliders.get_q()));
 
             auto end2 = std::chrono::high_resolution_clock::now();
             // Calculate collision data and render points/arrows
@@ -120,10 +124,10 @@ int main() {
                     points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
                     points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
 
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], angle(pusher->tangentVector(collision_data[0])), 0.03f});
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], angle(pusher->normalVector(collision_data[0])),  0.03f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->tangentVector(collision_data[1])), 0.03f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->normalVector(collision_data[1])),  0.03f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], angle(pusher->tangentVector(collision_data[0])), 0.3f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], angle(pusher->normalVector(collision_data[0])),  0.3f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->tangentVector(collision_data[1])), 0.3f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->normalVector(collision_data[1])),  0.3f});
 
                     // std::cout << "Collision between Pusher and Slider: "
                     //         << "Angle1 = " << collision_data[0] * 180 / M_PI << ", "
@@ -136,13 +140,23 @@ int main() {
             // viewer.render();
             viewer.render(points, arrows);
 
+            auto dt = pushers.pusher_dv(0.0001);
+            for(auto vec : dt){
+                for(auto vec2 : vec){
+                    std::cout << vec2[0] << " " << vec2[1] << " " << vec2[2] << std::endl;
+                }
+                std::cout << "\n";
+            }
+
             auto end4 = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed = end4 - start;
             std::chrono::duration<double> elapsed1 = end1 - start;
             std::chrono::duration<double> elapsed2 = end - end1;
             std::chrono::duration<double> elapsed3 = end2 - end;
             std::chrono::duration<double> elapsed4 = end3 - end2;
             std::chrono::duration<double> elapsed5 = end4 - end3;
-            std::cout << "\n\tTime spent: " << elapsed1.count() << "s" << std::endl;
+            std::cout << "Total time spent: " << 1/elapsed.count() << "s" << std::endl;
+            std::cout << "\tTime spent: " << elapsed1.count() << "s" << std::endl;
             std::cout << "\tTime spent: " << elapsed2.count() << "s" << std::endl;
             std::cout << "\tTime spent: " << elapsed3.count() << "s" << std::endl;
             std::cout << "\tTime spent: " << elapsed4.count() << "s\tmain" << std::endl;
