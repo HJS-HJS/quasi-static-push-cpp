@@ -46,12 +46,6 @@ void ObjectPusher::apply_q(const std::array<float, 4>& q) {
     float cos_r = std::cos(q[2]);
     float sin_r = std::sin(q[2]);
 
-    // Compute rotation matrix
-    // Eigen::Matrix2f rot_matrix;
-    // rot_matrix <<
-    //     std::cos(q[2]), std::sin(q[2]),
-    //     std::sin(q[2]), -std::cos(q[2]);
-
     for (size_t idx = 0; idx < pushers.size(); ++idx) {
         float rel_x = m_q_rel[idx][0] * q[3];
         float rel_y = m_q_rel[idx][1] * q[3];
