@@ -3,7 +3,7 @@ import os
 import time
 import numpy as np
 import curses
-
+import cv2
 so_file_path = os.path.abspath("build/build")
 sys.path.append(so_file_path)  # 정확한 경로 추가
 
@@ -13,14 +13,16 @@ import quasi_static_push
 viewer = quasi_static_push.SimulationViewer(
     # table_size_x = 1.5,
     # table_size_y = 1.0,
+    # visualise = False,
     show_closest_point = False,
+    state = "Gray",
     )
 
 # 시뮬레이션 초기화
 viewer.reset()
 
 # u_input으로 시뮬레이션 실행
-u_input = [0.001, 0.0, 0.000, 0.005]
+u_input = [0.001, 0.0, 0.000, 0.00]
 
 unit_v_speed = 1.0
 unit_r_speed = 1.0
@@ -68,35 +70,45 @@ unit_w_speed = 1.0
 # curses.wrapper(main)
 
 while True:
-    # slider_inputs = [
-    #     ("circle", [0.0, -0.5, 0.0, 0.45]),
-    #     ("circle", [0.5, 0.3, 0.0, 0.45]),
-    #     ("circle", [-0.5, 0.3, 0.0, 0.45]),
-    #     ("circle", [0.0, 1.1, 0.0, 0.45]),
-    #     ("circle", [1.0, 1.1, 0.0, 0.45]),
-    #     ("circle", [-1.0, 1.1, 0.0, 0.45]),
-    # ]
+    slider_inputs = [
+        ("circle", [0.0, -0.1, 0.0, 0.15]),
+        ("circle", [0.2, 0.2, 0.0, 0.15]),
+        ("circle", [-0.2, 0.2, 0.0, 0.15]),
+        # ("circle", [0.0, 0.6, 0.0, 0.15]),
+        # ("circle", [0.3, 0.6, 0.0, 0.15]),
+        # ("circle", [-0.3, 0.6, 0.0, 0.15]),
+        ("ellipse", [0.0, 0.6, np.random.random(), 0.15, 0.12]),
+        ("ellipse", [0.3, 0.6, np.random.random(), 0.15, 0.10]),
+        ("ellipse", [-0.3, 0.6, np.random.random(), 0.15, 0.16]),
+    ]
 
     # # 푸셔 입력값 (정수, 실수, 문자열, 딕셔너리, 실수 7개)
-    # pusher_input = (
-    #     3, 120.0, "superellipse", 
-    #     {"a": 0.015, "b": 0.03, "n": 10}, 
-    #     0.10, 0.185, 0.04, 0.0, -1.2, 0.0
-    # )
+    pusher_input = (
+        3, 120.0, "superellipse", 
+        {"a": 0.015, "b": 0.03, "n": 10}, 
+        0.10, 0.185, 0.04, 0.0, -0.5, 0.0
+    )
 
     # 새로운 테이블 크기
-    newtableWidth = 2.0 + np.random.random()
-    newtableHeight = 2.0 + np.random.random()
+    newtableWidth = 1.0 + np.random.random() * 0.5
+    newtableHeight = 1.0 + np.random.random() * 0.5
     
     viewer.reset(
+        slider_inputs = slider_inputs,
+        pusher_input = pusher_input,
         newtableWidth = newtableWidth,
         newtableHeight = newtableHeight
     )
 
     for i in range(1000):
         start = time.time()
-        is_ok = viewer.run(u_input)
+        is_ok, state = viewer.run(u_input)
         viewer.render()
+        # image = state
+        # print(image)
+        # cv2.imshow("Rendered Image", image)
+        # cv2.waitKey(1)
+        print(state)
         print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
         time.sleep(0.001)  # CPU 부하 방지
         if is_ok: 

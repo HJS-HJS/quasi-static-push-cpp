@@ -22,14 +22,16 @@ public:
         bool grid = true,
         bool visualise = true,
         bool move_to_target = true,
-        bool show_closest_point = true
+        bool show_closest_point = true,
+        std::string state = "Image"
         ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, visualise),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
             table_limit(std::array<float, 2>{tableWidth/2, tableHeight/2}),
             visualise(visualise), 
             show_closest_point(show_closest_point),
-            move_to_target(move_to_target) {
+            move_to_target(move_to_target),
+            state(state) {
         viewer.setGridSpacing(0.1f);
         reset();
     }
@@ -89,9 +91,13 @@ public:
         table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
     }
 
-    bool run(const std::vector<float>& u_input) {
+    py::tuple run(const std::vector<float>& u_input) {
         simulate_(u_input);
-        return isDishOut_();
+
+        bool condition = isDishOut_();  // 특정 조건을 확인하는 함수
+        py::object state_data = get_state();
+
+        return py::make_tuple(condition, state_data);
     }
 
     void render() {
@@ -118,7 +124,25 @@ public:
         }
     }
 
-    void get_state() {
+    py::object get_state() {
+        if (state == "Image") {
+            auto surface = viewer.getRenderedImage();
+            return py::array_t<uint8_t>(
+                {surface->h, surface->w, 4}, 
+                {surface->pitch, 4, 1},
+                static_cast<uint8_t*>(surface->pixels), 
+                py::capsule(surface, [](void *p) { SDL_FreeSurface(static_cast<SDL_Surface*>(p)); })
+            );
+        } 
+        else if (state == "Linear") {
+            std::vector<float> linear_state = {0.1f, 0.2f, 0.3f, 0.4f};  // 예제 데이터
+            return py::array_t<float>(
+                {linear_state.size()},  // Shape (1D array)
+                {sizeof(float)},        // Strides
+                linear_state.data()     // Data pointer
+            );
+        } 
+        throw std::runtime_error("Invalid state type");
     }
 
 private:
@@ -132,6 +156,7 @@ private:
     bool visualise;
     bool show_closest_point;
     bool move_to_target;
+    std::string state;
 
     bool isDishOut_() {
     return std::any_of(sliders.begin(), sliders.end(), [this](const auto& dish) {
@@ -217,14 +242,49 @@ PYBIND11_MODULE(quasi_static_push, m) {
             - window_width (int): Width of the simulation window (default: 1600).
             - window_height (int): Height of the simulation window (default: 1600).
             - scale (float): Scale factor for visualization (default: 400.0).
-            - tableWidth (float): Table width in meters (default: 0.5).
-            - tableHeight (float): Table height in meters (default: 0.5).
+            - tableWidth (float): Table width in meters (default: 2.0).
+            - tableHeight (float): Table height in meters (default: 2.0).
             - grid (bool): Show grid in visualization (default: True).
             - visualise (bool): Enable visualization (default: True).
             - move_to_target (bool): Move to target position (default: True).
             - show_closest_point (bool): Highlight closest points in visualization (default: True).
+            - state (str): Type of state to return from `get_state()` and `run()`. Options:
+                - "Image": Returns an (H, W, 4) RGBA NumPy array.
+                - "Linear": Returns a 1D NumPy array of floats.
+                - "Gray": Returns an (H, W) grayscale NumPy array.
+            
+            Methods:
+            --------
+            reset()
+                Reset the simulation to the initial state.
+
+            reset(slider_inputs, pusher_input, newtableWidth, newtableHeight)
+                Reset the simulation with custom parameters.
+
+                Parameters:
+                - slider_inputs (List[Tuple[str, List[float]]]): List of sliders with their types and parameters.
+                - pusher_input (Tuple[int, float, str, Dict[str, float], float, float, float, float, float, float]): 
+                Configuration of the pusher.
+                - newtableWidth (float): New table width.
+                - newtableHeight (float): New table height.
+
+            run(u_input: List[float]) -> Tuple[bool, Union[numpy.ndarray, List[float]]]
+                Run the simulation and return a tuple `(bool, state)`.
+
+                - The first element (bool) indicates whether a specific condition is met (e.g., object out of bounds).
+                - The second element (state) depends on the `state` type:
+                    - "Image": (H, W, 4) RGBA NumPy array.
+                    - "Linear": 1D NumPy array of floats.
+                    - "Gray": (H, W) grayscale NumPy array.
+
+            get_state() -> Union[numpy.ndarray, List[float]]
+                Get the simulation state based on the selected `state` type.
+
+                - "Image": Returns an (H, W, 4) RGBA NumPy array.
+                - "Linear": Returns a 1D NumPy array of floats.
+                - "Gray": Returns an (H, W) grayscale NumPy array.
         )pbdoc")
-        .def(py::init<int, int, float, float, float, bool, bool, bool, bool>(),
+        .def(py::init<int, int, float, float, float, bool, bool, bool, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
@@ -233,7 +293,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("grid") = true,
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,
-             py::arg("show_closest_point") = true)
+             py::arg("show_closest_point") = true,
+             py::arg("state") = "Image")
 
         .def("reset", py::overload_cast<>(&PySimulationViewer::reset))
         .def("reset", py::overload_cast<
@@ -257,6 +318,19 @@ PYBIND11_MODULE(quasi_static_push, m) {
             py::arg("newtableWidth") = 2.0f,
             py::arg("newtableHeight") = 2.0f
         )
-        .def("run", &PySimulationViewer::run)
-        .def("render", &PySimulationViewer::render);
+        .def("render", &PySimulationViewer::render)
+        .def("get_state", &PySimulationViewer::get_state, R"pbdoc(
+            Get the state based on the current state type.
+
+            - "Image": Returns an (H, W, 4) RGBA NumPy array.
+            - "Linear": Returns a NumPy array of floats.
+        )pbdoc")
+        .def("run", &PySimulationViewer::run, R"pbdoc(
+            Run the simulation and return a tuple (bool, state).
+
+            - The first element (bool) indicates a certain condition (e.g., if an object is out of bounds).
+            - The second element (state) depends on the `state` type:
+                - "Image": (H, W, 4) RGBA NumPy array.
+                - "Linear": NumPy array of floats.
+        )pbdoc");
 }
