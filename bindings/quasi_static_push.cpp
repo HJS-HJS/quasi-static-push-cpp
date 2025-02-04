@@ -9,9 +9,6 @@
 #include "simulation/param_function.h"
 #include "diagram/diagram_all.h"
 
-
-#include <thread>
-
 namespace py = pybind11;
 
 class PySimulationViewer {
