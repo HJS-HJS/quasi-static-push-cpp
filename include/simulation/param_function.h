@@ -19,6 +19,23 @@ public:
 
     void update_param();
 
+    Eigen::VectorXf qs;
+    Eigen::VectorXf qp;
+    Eigen::VectorXf phi;
+    Eigen::MatrixXf nhat;
+    Eigen::MatrixXf vc_jac;
+    Eigen::MatrixXf m_JN;
+    Eigen::MatrixXf m_JT;
+    
+    Eigen::MatrixXf m_JNS;
+    Eigen::MatrixXf m_JNP;
+    Eigen::MatrixXf m_JTS;
+    Eigen::MatrixXf m_JTP;
+
+    Eigen::MatrixXf m_mu;
+    Eigen::MatrixXf m_A;
+    Eigen::MatrixXf m_B;
+
 private:
     ObjectSlider& sliders;
     ObjectPusher& pushers;
@@ -30,16 +47,6 @@ private:
     float fbscale;
 
     int n_phi;
-
-    Eigen::VectorXf phi;  
-    Eigen::MatrixXf nhat;
-    Eigen::MatrixXf vc_jac;
-    Eigen::MatrixXf m_JN;
-    Eigen::MatrixXf m_JT;
-
-    Eigen::MatrixXf m_mu;
-    Eigen::MatrixXf m_A;
-    Eigen::MatrixXf m_B;
 
     bool is_collision_available(const Diagram& diagram1, const Diagram& diagram2, float threshold);
     int combination(int n, int r);

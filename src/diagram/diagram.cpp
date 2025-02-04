@@ -113,7 +113,7 @@ void Diagram::genLimitConstant() {
     for (int i = 0; i < npts; ++i) {
         float theta = i * dtheta;
         float r = funcRadius(theta);
-        area += 2 * thickness * r - thickness * thickness;
+        area += (1.0f / 2.0f) * (2.0f * thickness * r - thickness * thickness);
         moment += (1.0f / 3.0f) * r * r * r - (thickness / 4.0f) * r * r;
     }
 
@@ -124,8 +124,6 @@ void Diagram::genLimitConstant() {
     limit_constant(0, 0) = area;
     limit_constant(1, 1) = area;
     limit_constant(2, 2) = moment;
-
-    std::cout << "Generated limit constants: Area = " << area << ", Moment = " << moment << std::endl;
 }
 
 std::array<float, 3> Diagram::cal_collision_data(const Diagram& diagram2) const {
@@ -195,7 +193,6 @@ std::array<float, 3> Diagram::cal_collision_data(const Diagram& diagram2) const 
     }
 
     if (is_overlap) {
-        std::cout << "Overlap !!!!!!!!!! " << overlap_idx_list.size() << " points" << std::endl;
         std::vector<float> distance_list;
         std::vector<int> idx_list;
 

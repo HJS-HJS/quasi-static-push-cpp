@@ -11,7 +11,23 @@ ObjectPusher::ObjectPusher(int n_finger, float finger_angle,
       v{0.0f, 0.0f, 0.0f, 0.0f},
       width_limit_max(width_limit_max),
       width_limit_min(width_limit_min) {
+    reset(n_finger, finger_angle,
+          type, 
+          diagram_param,
+          width, width_limit_max, width_limit_min,
+          center_x, center_y, rotation);
+}
 
+void ObjectPusher::reset(int n_finger, float finger_angle,
+                         const std::string& type, 
+                         const std::map<std::string, float>& diagram_param,
+                         float width, float width_limit_max, float width_limit_min,
+                         float center_x, float center_y, float rotation){
+    clear();
+    this->q = {center_x, center_y, rotation, width};
+    this->v = {0.0f, 0.0f, 0.0f, 0.0f};
+    this->width_limit_max = width_limit_max;
+    this->width_limit_min = width_limit_min;
     for (int i = 0; i < n_finger; ++i) {
         if (type == "circle")            pushers.push_back(std::make_unique<Circle>(0.0f, 0.0f, 0.0f, diagram_param.at("r")));
         else if (type == "ellipse")      pushers.push_back(std::make_unique<Ellipse>(0.0f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("b")));
@@ -41,7 +57,7 @@ const std::vector<std::unique_ptr<Diagram>>& ObjectPusher::get_pushers() const {
 }
 
 // Apply position configuration
-void ObjectPusher::apply_q(const std::array<float, 4>& q) {
+void ObjectPusher::apply_q(const std::vector<float>& q) {
     this->q = q;
     float cos_r = std::cos(q[2]);
     float sin_r = std::sin(q[2]);
@@ -60,7 +76,7 @@ void ObjectPusher::apply_q(const std::array<float, 4>& q) {
 }
 
 // Apply velocity configuration
-void ObjectPusher::apply_v(const std::array<float, 4>& velocity) {
+void ObjectPusher::apply_v(const std::vector<float>& velocity) {
     this->v = velocity;
     for (size_t idx = 0; idx < pushers.size(); ++idx) {
         float rel_x = m_q_rel[idx][0] * q[3];
@@ -135,6 +151,11 @@ size_t ObjectPusher::size() const {
 Diagram* ObjectPusher::operator[](size_t index) {
     if (index >= pushers.size()) throw std::out_of_range("Index out of range");
     return pushers[index].get();
+}
+
+void ObjectPusher::clear() {
+    pushers.clear();
+    pushers.shrink_to_fit();
 }
 
 // Destructor

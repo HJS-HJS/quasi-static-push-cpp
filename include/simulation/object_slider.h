@@ -66,6 +66,9 @@ public:
     // Remove a slider by index
     void remove(size_t index);
 
+    // clean the slider diagram vector
+    void clear();
+
     // Destructor
     ~ObjectSlider() = default;
 

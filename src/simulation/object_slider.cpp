@@ -72,3 +72,7 @@ void ObjectSlider::remove(size_t index) {
     }
     sliders.erase(sliders.begin() + index);
 }
+
+void ObjectSlider::clear() {
+    sliders.clear();
+}

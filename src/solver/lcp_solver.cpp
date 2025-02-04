@@ -1,21 +1,27 @@
 #include "solver/lcp_solver.h"
-#include <iostream>
-#include <algorithm>
-#include <cmath>
+#include <iomanip>
 
-LCPSolver::LCPSolver(const std::vector<std::vector<float>>& M, const std::vector<float>& q, int maxIter)
+LCPSolver::LCPSolver(const Eigen::MatrixXf& M, const Eigen::VectorXf& q, int maxIter)
     : n(q.size()), maxIter(maxIter) {
-    if (M.size() != n || M[0].size() != n) {
+    if (M.rows() != n || M.cols() != n) {
         throw std::invalid_argument("Matrix M must be square and match the size of vector q.");
     }
 
-    T.resize(n, std::vector<float>(2 * n + 2, 0.0f));
+    W = 0;
+    Z = 1;
+    Y = 2;
+    Q = 3;
+
+    T.resize(n, 2 * n + 2);
+    T.setZero();
+    T.block(0, 0, n, n) = Eigen::MatrixXf::Identity(n, n);
+
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
-            T[i][j + n] = -M[i][j];
+            T(i, j + n) = -M(i, j);
         }
-        T[i][2 * n] = -1.0f;
-        T[i][2 * n + 1] = q[i];
+        T(i, 2 * n) = -1.0f;
+        T(i, 2 * n + 1) = q(i);
     }
 
     wPos.resize(n);
@@ -24,95 +30,152 @@ LCPSolver::LCPSolver(const std::vector<std::vector<float>>& M, const std::vector
         wPos[i] = i;
         zPos[i] = i + n;
     }
+
+    Eigen::MatrixXi TbInd(2, n);
+    TbInd.row(0).setConstant(W);
+    TbInd.row(1) = Eigen::VectorXi::LinSpaced(n, 0, n - 1);
+
+    Eigen::MatrixXi TnbInd(2, n);
+    TnbInd.row(0).setConstant(Z);
+    TnbInd.row(1) = Eigen::VectorXi::LinSpaced(n, 0, n - 1);
+
+    Eigen::MatrixXi DriveInd(2, 1);
+    DriveInd << Y, 0;
+
+    Eigen::MatrixXi QInd(2, 1);
+    QInd << Q, 0;
+
+    this->Tind = Eigen::MatrixXf(2, 2 * n + 2);
+    this->Tind << TbInd.cast<float>(), TnbInd.cast<float>(), DriveInd.cast<float>(), QInd.cast<float>();
 }
 
-std::pair<std::vector<float>, std::string> LCPSolver::solve() {
+std::pair<Eigen::VectorXf, std::string> LCPSolver::solve() {
     if (!initialize()) {
         return {extractSolution(), "Solution Found"};
     }
 
     for (int k = 0; k < maxIter; ++k) {
-        if (!step()) {
-            return {extractSolution(), "Secondary ray solution"};
+        bool stepVal = step();
+        if (Tind(0, 2 * n) == Y){
+            return {extractSolution(), "Solution found"};
         }
-        if (T.back()[2 * n] == Y) {
-            return {extractSolution(), "Solution Found"};
+
+        if (!stepVal) {
+            if (!initialize()) {
+                return {extractSolution(), "Secondary ray solution"};
+            }
+            return {Eigen::VectorXf::Zero(n), "Secondary ray found"};
         }
     }
-    return {{}, "Max Iterations Exceeded"};
+
+    return {Eigen::VectorXf::Zero(n), "Max Iterations Exceeded"};
 }
 
 bool LCPSolver::initialize() {
-    size_t minIndex = std::min_element(T.begin(), T.end(), [](const std::vector<float>& a, const std::vector<float>& b) {
-        return a.back() < b.back();
-    }) - T.begin();
+    Eigen::VectorXf q = T.col(T.cols() - 1);
+    float minQ = q.minCoeff();
 
-    if (T[minIndex].back() < 0) {
-        clearDriverColumn(minIndex);
-        pivot(minIndex);
+        if (minQ < 0) {
+        int ind;
+        q.minCoeff(&ind);
+        clearDriverColumn(ind);
+        pivot(ind);
         return true;
     }
     return false;
 }
 
 bool LCPSolver::step() {
-    size_t pivotRow = std::numeric_limits<size_t>::max(); // Replace -1 with max value of size_t
+    size_t pivotRow = std::numeric_limits<size_t>::max();
     float minRatio = std::numeric_limits<float>::infinity();
 
     for (size_t i = 0; i < n; ++i) {
-        if (T[i][2 * n] > 0) {
-            float ratio = T[i][2 * n + 1] / T[i][2 * n];
+        if (T(i, 2 * n) > 1e-6f) {
+            float ratio = T(i, 2 * n + 1) / T(i, 2 * n);
+
+            if (std::isnan(ratio) || !std::isfinite(ratio)) continue;
+
             if (ratio < minRatio) {
                 minRatio = ratio;
                 pivotRow = i;
             }
         }
     }
+    if (pivotRow == std::numeric_limits<size_t>::max()) return false;
 
-    if (pivotRow != std::numeric_limits<size_t>::max()) { // Update condition
-        clearDriverColumn(pivotRow);
-        pivot(pivotRow);
-        return true;
-    }
-    return false;
+    clearDriverColumn(pivotRow);
+    pivot(pivotRow);
+    return true;
 }
 
-void LCPSolver::pivot(size_t pos) {
-    size_t partnerPos = wPos[pos];
-    if (partnerPos != std::numeric_limits<size_t>::max()) { // Update condition
-        swapColumns(pos, partnerPos);
-    }
-}
-
-void LCPSolver::clearDriverColumn(size_t ind) {
-    float divisor = T[ind][2 * n] + 1e-6f;
-    for (float& val : T[ind]) {
-        val /= divisor;
-    }
+Eigen::VectorXf LCPSolver::extractSolution() const {
+    Eigen::VectorXf z = Eigen::VectorXf::Zero(n);
+    Eigen::VectorXf q = T.col(T.cols() - 1);
 
     for (size_t i = 0; i < n; ++i) {
-        if (i != ind) {
-            float factor = T[i][2 * n];
-            for (size_t j = 0; j < T[i].size(); ++j) {
-                T[i][j] -= factor * T[ind][j];
-            }
-        }
-    }
-}
-
-std::vector<float> LCPSolver::extractSolution() const {
-    std::vector<float> z(n, 0.0f);
-    for (size_t i = 0; i < n; ++i) {
-        if (wPos[i] >= n) {
-            z[wPos[i] - n] = T[i].back();
+        if (static_cast<int>(Tind(0, i)) == Z) {
+            z(static_cast<int>(Tind(1, i))) = q(i);
         }
     }
     return z;
 }
 
-void LCPSolver::swapColumns(size_t i, size_t j) {
-    for (auto& row : T) {
-        std::swap(row[i], row[j]);
+std::optional<int> LCPSolver::partnerPos(size_t pos) {
+    int v = static_cast<int>(Tind(0, pos));
+    int ind = static_cast<int>(Tind(1, pos));
+
+    if (v == W) return static_cast<int>(zPos[ind]);
+    if (v == Z) return static_cast<int>(wPos[ind]);
+    return std::nullopt;
+}
+
+bool LCPSolver::pivot(size_t pos) {
+    auto pposOpt = partnerPos(pos);
+    if (pposOpt.has_value()) {
+        int ppos = pposOpt.value();
+        swapColumns(pos, ppos);
+        swapColumns(pos, 2 * n);
+        return true;
+    } else {
+        swapColumns(pos, 2 * n);
+        return false;
     }
-    std::swap(wPos[i], zPos[j]);
+}
+
+void LCPSolver::swapPos(int v, int ind, int newPos) {
+    if (v == W) {
+        wPos[ind] = newPos % (2 * n + 2);
+    } else if (v == Z) {
+        zPos[ind] = newPos % (2 * n + 2);
+    }
+}
+
+void LCPSolver::swapColumns(size_t i, size_t j) {
+    Eigen::Vector2f iInd = Tind.col(i);
+    Eigen::Vector2f jInd = Tind.col(j);
+
+    // i → j
+    swapPos(iInd[0], iInd[1], j);
+    // j → i
+    swapPos(jInd[0], jInd[1], i);
+
+    Tind.col(i).swap(Tind.col(j));
+    T.col(i).swap(T.col(j));
+}
+
+
+void LCPSolver::clearDriverColumn(size_t ind) {
+    float divisor = T(ind, 2 * n);
+    if (std::abs(divisor) < 1e-6f) {
+        return;
+    }
+
+    T.row(ind) = T.row(ind) / divisor;
+
+    for (size_t i = 0; i < n; ++i) {
+        if (i != ind) {
+            float factor = T(i, 2 * n);
+            T.row(i) = T.row(i) - factor * T.row(ind);
+        }
+    }
 }
