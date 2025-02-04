@@ -88,6 +88,8 @@ public:
         viewer.reset(newtableWidth, newtableHeight, true);
         viewer.addDiagram(pushers.get_pushers(), "red");
         viewer.addDiagram(sliders.get_sliders(), "blue");
+        
+        table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
     }
 
     bool run(const std::vector<float>& u_input) {
@@ -134,10 +136,10 @@ private:
     bool show_closest_point;
     bool move_to_target;
 
-    bool isDishOut_(){
-
-
-        return true;
+    bool isDishOut_() {
+    return std::any_of(sliders.begin(), sliders.end(), [this](const auto& dish) {
+        return std::abs(dish->q[0]) > table_limit[0] || std::abs(dish->q[1]) > table_limit[1];
+        });
     }
 
     void simulate_(const std::vector<float>& u_input){

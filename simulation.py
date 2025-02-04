@@ -95,7 +95,11 @@ while True:
 
     for i in range(1000):
         start = time.time()
-        viewer.run(u_input)
+        is_ok = viewer.run(u_input)
         viewer.render()
         print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
         time.sleep(0.001)  # CPU 부하 방지
+        if is_ok: 
+            print("dish out")
+            time.sleep(1)
+            break
