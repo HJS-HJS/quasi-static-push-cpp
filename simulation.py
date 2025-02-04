@@ -10,9 +10,10 @@ import quasi_static_push
 
 # Python에서 SimulationViewer 객체 생성
 viewer = quasi_static_push.SimulationViewer(
-    table_size_x = 1.5,
-    table_size_y = 1.0,
-    show_closest_point = True)
+    # table_size_x = 1.5,
+    # table_size_y = 1.0,
+    show_closest_point = False,
+    )
 
 # 시뮬레이션 초기화
 viewer.reset()
@@ -66,8 +67,10 @@ unit_w_speed = 1.0
 # curses.wrapper(main)
 
 while True:
-    start = time.time()
-    viewer.run(u_input)
-    viewer.render()
-    print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
-    time.sleep(0.01)  # CPU 부하 방지
+    viewer.reset()
+    for i in range(1000):
+        start = time.time()
+        viewer.run(u_input)
+        viewer.render()
+        print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
+        time.sleep(0.001)  # CPU 부하 방지

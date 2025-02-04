@@ -17,8 +17,8 @@ private:
     bool showGrid;
     bool displayWindow;
     float gridSpacingMeters; // Moved above
-    int rectangleWidth;
-    int rectangleHeight;
+    int tableWidth;
+    int tableHeight;
     SDL_Window* window; // Moved below
     SDL_Renderer* renderer;
     std::unordered_map<const Diagram*, SDL_Color> currentDiagrams;
@@ -42,7 +42,7 @@ private:
     void drawArrows(const std::vector<std::tuple<float, float, float, float>>& arrows, const std::string& colorName = "blue", int thickness = 5) const;
 
 public:
-    SimulationViewer(int width, int height, float unit, float table_size_x, float table_size_y, bool showGrid = true, bool displayWindow = true, float gridSpacingMeters = 1.0f);
+    SimulationViewer(int width, int height, float unit, float tableWidth, float tableHeight, bool showGrid = true, bool displayWindow = true, float gridSpacingMeters = 1.0f);
     ~SimulationViewer();
 
     void setGridVisibility(bool visibility);
@@ -53,7 +53,7 @@ public:
     void addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName);
     void renderDiagram(const Diagram* diagram, const SDL_Color& color);
     void removeDiagram(const Diagram* diagram);
-    void reset(int newRectangleWidth, int newRectangleHeight, const std::vector<std::pair<const Diagram*, std::string>>& diagrams, bool newDisplayWindow);
+    void reset(float newTableWidth, float newTableHeight, bool newDisplayWindow);
     // void render();
     void render(const std::vector<std::vector<float>>& points = {}, 
                 const std::vector<std::tuple<float, float, float, float>>& arrows = {});

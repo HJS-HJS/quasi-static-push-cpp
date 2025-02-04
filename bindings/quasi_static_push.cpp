@@ -20,15 +20,16 @@ public:
         int window_width = 1600, 
         int window_height = 1600, 
         float scale = 400.0f,
-        float table_size_x = 0.5,
-        float table_size_y = 0.5,
+        float tableWidth = 2.0,
+        float tableHeight = 2.0,
         bool grid = true,
         bool visualise = true,
         bool move_to_target = true,
         bool show_closest_point = true
-        ) : viewer(window_width, window_height, scale, table_size_x, table_size_y, grid, visualise),
+        ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, visualise),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
+            table_limit(std::array<float, 2>{tableWidth/2, tableHeight/2}),
             visualise(visualise), 
             show_closest_point(show_closest_point),
             move_to_target(move_to_target) {
@@ -48,20 +49,24 @@ public:
             },
             {
                 3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f
-            }
+            },
+            2.0,
+            2.0
         );
     }
 
     void reset(
         std::vector<std::tuple<std::string, std::vector<float>>> slider_inputs,
-        std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float> pusher_input
+        std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float> pusher_input,
+        float newtableWidth,
+        float newtableHeight
     ) {
         sliders.clear();
         pushers.clear();
         param.reset();
 
         for (const auto& slider : slider_inputs) {
-            add_slider(std::get<0>(slider), std::get<1>(slider));
+            addSlider_(std::get<0>(slider), std::get<1>(slider));
         }
 
         pushers = ObjectPusher(
@@ -80,23 +85,68 @@ public:
             false
         );
 
+        viewer.reset(newtableWidth, newtableHeight, true);
         viewer.addDiagram(pushers.get_pushers(), "red");
         viewer.addDiagram(sliders.get_sliders(), "blue");
     }
 
-    void add_slider(std::string type, std::vector<float> param) {
-        if (type == "circle") sliders.add(std::make_unique<Circle>(param[0], param[1], param[2], param[3]));
-        else if (type == "ellipse") sliders.add(std::make_unique<Ellipse>(param[0], param[1], param[2], param[3], param[4]));
-        else if (type == "superellipse") sliders.add(std::make_unique<SuperEllipse>(param[0], param[1], param[2], param[3], param[4], param[5]));
+    bool run(const std::vector<float>& u_input) {
+        simulate_(u_input);
+        return isDishOut_();
     }
 
-    void run(const std::vector<float>& u_input) {
+    void render() {
+        if (!show_closest_point){   
+            viewer.render();
+        }
+        else{
+            std::vector<std::vector<float>> points;
+            std::vector<std::tuple<float, float, float, float>> arrows;
 
-        param->update_param();
+            for (const auto& pusher : pushers) {
+                for (const auto& slider : sliders) {
+                    auto collision_data = pusher->cal_collision_data(*slider);
+                    points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
+                    points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
 
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.3f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.3f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.3f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.3f});
+                }
+            }
+            viewer.render(points, arrows);
+        }
+    }
+
+    void get_state() {
+    }
+
+private:
+    SimulationViewer viewer;
+    ObjectSlider sliders;
+    ObjectPusher pushers;
+    ObjectSlider obstacles;
+    std::shared_ptr<ParamFunction> param;
+    std::unique_ptr<QuasiStateSim> sim;
+    std::array<float, 2> table_limit;
+    bool visualise;
+    bool show_closest_point;
+    bool move_to_target;
+
+    bool isDishOut_(){
+
+
+        return true;
+    }
+
+    void simulate_(const std::vector<float>& u_input){
         if (!sim) {
             throw std::runtime_error("Simulation not initialized. Call reset() first.");
         }
+
+        param->update_param();
+
         Eigen::Matrix2f _rot;
         if (move_to_target) {
             float cos_r = std::cos(pushers.get_rot());
@@ -125,8 +175,8 @@ public:
         std::vector<float> qp = std::get<1>(ans);
 
         // 이전 상태 저장 후 업데이트
-        std::vector<float> qs_diff = substract_vectors(qs, sliders.get_q());
-        std::vector<float> qp_diff = substract_vectors(qp, pushers.q);
+        std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
+        std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
 
         // 새로운 상태 적용
         sliders.apply_v(qs_diff);
@@ -135,38 +185,17 @@ public:
         pushers.apply_q(qp);
     }
 
-    void render() {
-        if (!show_closest_point){   
-            viewer.render();
-        }
-        else{
-            std::vector<std::vector<float>> points;
-            std::vector<std::tuple<float, float, float, float>> arrows;
-
-            for (const auto& pusher : pushers) {
-                for (const auto& slider : sliders) {
-                    auto collision_data = pusher->cal_collision_data(*slider);
-                    points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
-                    points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
-
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], angle(pusher->tangentVector(collision_data[0])), 0.3f});
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], angle(pusher->normalVector(collision_data[0])),  0.3f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->tangentVector(collision_data[1])), 0.3f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->normalVector(collision_data[1])),  0.3f});
-                }
-            }
-            viewer.render(points, arrows);
-        }
+    void addSlider_(std::string type, std::vector<float> param) {
+        if (type == "circle") sliders.add(std::make_unique<Circle>(param[0], param[1], param[2], param[3]));
+        else if (type == "ellipse") sliders.add(std::make_unique<Ellipse>(param[0], param[1], param[2], param[3], param[4]));
+        else if (type == "superellipse") sliders.add(std::make_unique<SuperEllipse>(param[0], param[1], param[2], param[3], param[4], param[5]));
     }
 
-    void get_state() {
-    }
-
-    float angle(const std::array<float, 2>& v) {
+    float calculateAngle_(const std::array<float, 2>& v) {
         return std::atan2(v[1], v[0]);
     }
 
-    std::vector<float> substract_vectors(const std::vector<float>& a, const std::vector<float>& b) {
+    std::vector<float> substractVectors_(const std::vector<float>& a, const std::vector<float>& b) {
         if (a.size() != b.size()) {
             throw std::invalid_argument("Vector sizes must match for addition.");
         }
@@ -175,17 +204,6 @@ public:
         std::transform(a.begin(), a.end(), b.begin(), result.begin(), std::minus<float>());
         return result;
     }
-
-private:
-    SimulationViewer viewer;
-    ObjectSlider sliders;
-    ObjectPusher pushers;
-    ObjectSlider obstacles;
-    std::shared_ptr<ParamFunction> param;
-    std::unique_ptr<QuasiStateSim> sim;
-    bool visualise;
-    bool show_closest_point;
-    bool move_to_target;
 
 };
 
@@ -200,8 +218,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
             - window_width (int): Width of the simulation window (default: 1600).
             - window_height (int): Height of the simulation window (default: 1600).
             - scale (float): Scale factor for visualization (default: 400.0).
-            - table_size_x (float): Table width in meters (default: 0.5).
-            - table_size_y (float): Table height in meters (default: 0.5).
+            - tableWidth (float): Table width in meters (default: 0.5).
+            - tableHeight (float): Table height in meters (default: 0.5).
             - grid (bool): Show grid in visualization (default: True).
             - visualise (bool): Enable visualization (default: True).
             - move_to_target (bool): Move to target position (default: True).
@@ -211,15 +229,20 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
-             py::arg("table_size_x") = 2.0,
-             py::arg("table_size_y") = 2.0,
+             py::arg("tableWidth") = 2.0,
+             py::arg("tableHeight") = 2.0,
              py::arg("grid") = true,
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,
              py::arg("show_closest_point") = true)
 
         .def("reset", py::overload_cast<>(&PySimulationViewer::reset))
-        .def("reset", py::overload_cast<std::vector<std::tuple<std::string, std::vector<float>>>, std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float>>(&PySimulationViewer::reset))
+        .def("reset", py::overload_cast<
+                std::vector<std::tuple<std::string, std::vector<float>>>,
+                std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float>,
+                float,
+                float
+                >(&PySimulationViewer::reset))
         .def("run", &PySimulationViewer::run)
         .def("render", &PySimulationViewer::render);
 }

@@ -4,9 +4,9 @@
 #include <algorithm>
 #include <cmath>
 
-SimulationViewer::SimulationViewer(int width, int height, float unit, float table_size_x, float table_size_y, bool showGrid, bool displayWindow, float gridSpacingMeters)
+SimulationViewer::SimulationViewer(int width, int height, float unit, float tableWidth, float tableHeight, bool showGrid, bool displayWindow, float gridSpacingMeters)
     : screenWidth(width), screenHeight(height), unit(unit), showGrid(showGrid), displayWindow(displayWindow),
-      gridSpacingMeters(gridSpacingMeters), rectangleWidth((int)(table_size_x * unit)), rectangleHeight((int)(table_size_y * unit)),
+      gridSpacingMeters(gridSpacingMeters), tableWidth((int)(tableWidth * unit)), tableHeight((int)(tableHeight * unit)),
       window(nullptr), renderer(nullptr) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         throw std::runtime_error("Failed to initialize SDL: " + std::string(SDL_GetError()));
@@ -130,18 +130,14 @@ void SimulationViewer::removeDiagram(const Diagram* diagram) {
     currentDiagrams.erase(diagram);
 }
 
-void SimulationViewer::reset(int newRectangleWidth, int newRectangleHeight, const std::vector<std::pair<const Diagram*, std::string>>& diagrams, bool newDisplayWindow) {
-    rectangleWidth = newRectangleWidth;
-    rectangleHeight = newRectangleHeight;
+void SimulationViewer::reset(float newtableWidth, float newtableHeight, bool newDisplayWindow) {
+    tableWidth = (int)(newtableWidth * unit);
+    tableHeight = (int)(newtableHeight * unit);
 
     for (auto& [diagram, texture] : diagramTextures) {
         SDL_DestroyTexture(texture);
     }
     diagramTextures.clear();
-
-    for (const auto& [diagram, colorName] : diagrams) {
-        addDiagram(diagram, colorName);
-    }
 
     displayWindow = newDisplayWindow;
 
@@ -178,9 +174,9 @@ void SimulationViewer::drawGrid() const {
 
 void SimulationViewer::drawBackground() const {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    int rectX = (screenWidth - rectangleWidth) / 2;
-    int rectY = (screenHeight - rectangleHeight) / 2;
-    SDL_Rect rect = {rectX, rectY, rectangleWidth, rectangleHeight};
+    int rectX = (screenWidth - tableWidth) / 2;
+    int rectY = (screenHeight - tableHeight) / 2;
+    SDL_Rect rect = {rectX, rectY, tableWidth, tableHeight};
     SDL_RenderFillRect(renderer, &rect);
 }
 
