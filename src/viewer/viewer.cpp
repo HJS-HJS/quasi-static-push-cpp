@@ -24,7 +24,11 @@ SimulationViewer::SimulationViewer(int width, int height, float unit, float tabl
             throw std::runtime_error("Failed to create renderer: " + std::string(SDL_GetError()));
         }
     } else {
-        renderer = SDL_CreateRenderer(nullptr, -1, SDL_RENDERER_ACCELERATED);
+        window = SDL_CreateWindow("Simulation Viewer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screenWidth, screenHeight, SDL_WINDOW_HIDDEN);
+        if (!window) {
+            throw std::runtime_error("Failed to create window: " + std::string(SDL_GetError()));
+        }
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     }
 }
 
@@ -141,9 +145,9 @@ void SimulationViewer::reset(float newtableWidth, float newtableHeight, bool new
 
     displayWindow = newDisplayWindow;
 
-    if (!renderer) {
-        throw std::runtime_error("Renderer not initialized");
-    }
+    // if (!renderer) {
+    //     throw std::runtime_error("Renderer not initialized");
+    // }
 
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Reset background to black
     SDL_RenderClear(renderer);
