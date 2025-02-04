@@ -1,8 +1,7 @@
-#include "diagram/diagram_all.h"
 #include "viewer/viewer.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
-#include "simulation/param_function.h"
+#include "diagram/diagram_all.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -50,24 +49,11 @@ int main() {
 
         sliders.add(std::make_unique<Circle>(0.0, -0.5, 0.0, 0.45));
         sliders.add(std::make_unique<Circle>(0.5, 0.3, 0.0, 0.4));
-        // sliders.add(std::make_unique<Circle>(-0.5, 0.3, 0.0, 0.45));
-        // sliders.add(std::make_unique<Circle>(0.0, 1.1, 0.0, 0.4));
-        // sliders.add(std::make_unique<Circle>(1.0, 1.1, 0.0, 0.45));
-        // sliders.add(std::make_unique<Circle>(-1.0, 1.1, 0.0, 0.45));
 
         // Initialize pushers
-        ObjectPusher pushers(3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f);
-        // ObjectPusher pushers(4, 90.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f);
+        ObjectPusher pushers(2, 180.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f);
 
         ObjectSlider empty;
-        ParamFunction param(sliders, pushers, empty);
-
-        // std::vector<float> move = {
-        //         0.0f, 0.0f, 0.002f,
-        //         0.0f, 0.0f, -0.001f,
-        //         0.0f, 0.0f, -0.005f,
-        //         0.0f, 0.0f, 0.005f,
-        // };
 
         std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -107,10 +93,9 @@ int main() {
             }
 
             auto end1 = std::chrono::high_resolution_clock::now();
-            param.update_param();
             auto end = std::chrono::high_resolution_clock::now();
             // Update positions
-            pushers.apply_q(add_vector_array(move_pusher, pushers.q));
+            pushers.apply_q(add_vectors(move_pusher, pushers.q));
             // sliders.apply_q(add_vectors(move, sliders.get_q()));
 
             auto end2 = std::chrono::high_resolution_clock::now();
@@ -129,15 +114,14 @@ int main() {
                     arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->tangentVector(collision_data[1])), 0.3f});
                     arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], angle(slider->normalVector(collision_data[1])),  0.3f});
 
-                    // std::cout << "Collision between Pusher and Slider: "
-                    //         << "Angle1 = " << collision_data[0] * 180 / M_PI << ", "
-                    //         << "Angle2 = " << collision_data[1] * 180 / M_PI << ", "
-                    //         << "Distance = " << collision_data[2] << std::endl;
+                    std::cout << "Collision between Pusher and Slider: "
+                            << "Angle1 = " << collision_data[0] * 180 / M_PI << ", "
+                            << "Angle2 = " << collision_data[1] * 180 / M_PI << ", "
+                            << "Distance = " << collision_data[2] << std::endl;
                 }
             }
             auto end3 = std::chrono::high_resolution_clock::now();
             // Render diagrams
-            // viewer.render();
             viewer.render(points, arrows);
 
             auto end4 = std::chrono::high_resolution_clock::now();
