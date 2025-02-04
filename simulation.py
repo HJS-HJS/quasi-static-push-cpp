@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import numpy as np
 import curses
 
 so_file_path = os.path.abspath("build/build")
@@ -67,7 +68,31 @@ unit_w_speed = 1.0
 # curses.wrapper(main)
 
 while True:
-    viewer.reset()
+    # slider_inputs = [
+    #     ("circle", [0.0, -0.5, 0.0, 0.45]),
+    #     ("circle", [0.5, 0.3, 0.0, 0.45]),
+    #     ("circle", [-0.5, 0.3, 0.0, 0.45]),
+    #     ("circle", [0.0, 1.1, 0.0, 0.45]),
+    #     ("circle", [1.0, 1.1, 0.0, 0.45]),
+    #     ("circle", [-1.0, 1.1, 0.0, 0.45]),
+    # ]
+
+    # # 푸셔 입력값 (정수, 실수, 문자열, 딕셔너리, 실수 7개)
+    # pusher_input = (
+    #     3, 120.0, "superellipse", 
+    #     {"a": 0.015, "b": 0.03, "n": 10}, 
+    #     0.10, 0.185, 0.04, 0.0, -1.2, 0.0
+    # )
+
+    # 새로운 테이블 크기
+    newtableWidth = 2.0 + np.random.random()
+    newtableHeight = 2.0 + np.random.random()
+    
+    viewer.reset(
+        newtableWidth = newtableWidth,
+        newtableHeight = newtableHeight
+    )
+
     for i in range(1000):
         start = time.time()
         viewer.run(u_input)

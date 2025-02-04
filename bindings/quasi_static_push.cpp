@@ -242,7 +242,22 @@ PYBIND11_MODULE(quasi_static_push, m) {
                 std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float>,
                 float,
                 float
-                >(&PySimulationViewer::reset))
+            >(&PySimulationViewer::reset),
+            py::arg("slider_inputs") = std::vector<std::tuple<std::string, std::vector<float>>>{
+                {"circle", {0.0, -0.5, 0.0, 0.45}},
+                {"circle", {0.5, 0.3, 0.0, 0.45}},
+                {"circle", {-0.5, 0.3, 0.0, 0.45}},
+                {"circle", {0.0, 1.1, 0.0, 0.45}},
+                {"circle", {1.0, 1.1, 0.0, 0.45}},
+                {"circle", {-1.0, 1.1, 0.0, 0.45}}
+            },
+            py::arg("pusher_input") = std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float>{
+                3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 
+                0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f
+            },
+            py::arg("newtableWidth") = 2.0f,
+            py::arg("newtableHeight") = 2.0f
+        )
         .def("run", &PySimulationViewer::run)
         .def("render", &PySimulationViewer::render);
 }
