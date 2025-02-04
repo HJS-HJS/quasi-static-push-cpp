@@ -17,14 +17,16 @@ namespace py = pybind11;
 class PySimulationViewer {
 public:
     PySimulationViewer(
-        int width = 1600, 
-        int height = 1600, 
+        int window_width = 1600, 
+        int window_height = 1600, 
         float scale = 400.0f,
+        float table_size_x = 0.5,
+        float table_size_y = 0.5,
         bool grid = true,
         bool visualise = true,
         bool move_to_target = true,
         bool show_closest_point = true
-        ) : viewer(width, height, scale, grid, visualise),
+        ) : viewer(window_width, window_height, scale, table_size_x, table_size_y, grid, visualise),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
             visualise(visualise), 
@@ -190,11 +192,27 @@ private:
 PYBIND11_MODULE(quasi_static_push, m) {
     m.doc() = "Quasi-static push simulation module";
 
-    py::class_<PySimulationViewer>(m, "SimulationViewer")
-        .def(py::init<int, int, float, bool, bool, bool, bool>(),
-             py::arg("width") = 1600,
-             py::arg("height") = 1600,
+    py::class_<PySimulationViewer>(m, "SimulationViewer",
+        R"pbdoc(
+            SimulationViewer for quasi-static push simulation.
+
+            Parameters:
+            - window_width (int): Width of the simulation window (default: 1600).
+            - window_height (int): Height of the simulation window (default: 1600).
+            - scale (float): Scale factor for visualization (default: 400.0).
+            - table_size_x (float): Table width in meters (default: 0.5).
+            - table_size_y (float): Table height in meters (default: 0.5).
+            - grid (bool): Show grid in visualization (default: True).
+            - visualise (bool): Enable visualization (default: True).
+            - move_to_target (bool): Move to target position (default: True).
+            - show_closest_point (bool): Highlight closest points in visualization (default: True).
+        )pbdoc")
+        .def(py::init<int, int, float, float, float, bool, bool, bool, bool>(),
+             py::arg("window_width") = 1600,
+             py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
+             py::arg("table_size_x") = 2.0,
+             py::arg("table_size_y") = 2.0,
              py::arg("grid") = true,
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,

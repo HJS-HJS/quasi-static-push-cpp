@@ -42,7 +42,7 @@ private:
     void drawArrows(const std::vector<std::tuple<float, float, float, float>>& arrows, const std::string& colorName = "blue", int thickness = 5) const;
 
 public:
-    SimulationViewer(int width, int height, float unit, bool showGrid = true, bool displayWindow = true, float gridSpacingMeters = 1.0f);
+    SimulationViewer(int width, int height, float unit, float table_size_x, float table_size_y, bool showGrid = true, bool displayWindow = true, float gridSpacingMeters = 1.0f);
     ~SimulationViewer();
 
     void setGridVisibility(bool visibility);

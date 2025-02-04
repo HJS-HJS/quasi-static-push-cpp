@@ -4,9 +4,9 @@
 #include <algorithm>
 #include <cmath>
 
-SimulationViewer::SimulationViewer(int width, int height, float unit, bool showGrid, bool displayWindow, float gridSpacingMeters)
+SimulationViewer::SimulationViewer(int width, int height, float unit, float table_size_x, float table_size_y, bool showGrid, bool displayWindow, float gridSpacingMeters)
     : screenWidth(width), screenHeight(height), unit(unit), showGrid(showGrid), displayWindow(displayWindow),
-      gridSpacingMeters(gridSpacingMeters), rectangleWidth(width / 4), rectangleHeight(height / 4),
+      gridSpacingMeters(gridSpacingMeters), rectangleWidth((int)(table_size_x * unit)), rectangleHeight((int)(table_size_y * unit)),
       window(nullptr), renderer(nullptr) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         throw std::runtime_error("Failed to initialize SDL: " + std::string(SDL_GetError()));

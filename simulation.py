@@ -5,12 +5,14 @@ import curses
 
 so_file_path = os.path.abspath("build/build")
 sys.path.append(so_file_path)  # 정확한 경로 추가
-# sys.path.append("build/build")  # .so 파일이 있는 경로 추가
 
 import quasi_static_push
 
 # Python에서 SimulationViewer 객체 생성
-viewer = quasi_static_push.SimulationViewer(show_closest_point = True)
+viewer = quasi_static_push.SimulationViewer(
+    table_size_x = 1.5,
+    table_size_y = 1.0,
+    show_closest_point = True)
 
 # 시뮬레이션 초기화
 viewer.reset()
