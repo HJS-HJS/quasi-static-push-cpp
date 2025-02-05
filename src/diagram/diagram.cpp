@@ -131,6 +131,15 @@ std::array<float, 3> Diagram::cal_collision_data(const Diagram& diagram2) const 
     float angle_range = M_PI;
     float center_angle = std::atan2(diagram2.q[1] - q[1], diagram2.q[0] - q[0]);
 
+    // Check target is in diagram
+    float betDistance_ = (q - diagram2.q).head<2>().norm();
+    float checkDistance_ = diagram2.funcRadius(center_angle + M_PI - diagram2.q[2]) + funcRadius(center_angle - q[2]);
+    bool is_collision = false;
+    
+    if (checkDistance_ > betDistance_){
+        is_collision = true;
+    }
+
     std::vector<std::array<float, 2>> rotated_points1 = points(resolution, center_angle - angle_range / 2, angle_range);
     std::vector<std::array<float, 2>> rotated_points2 = diagram2.points(resolution, center_angle + M_PI - angle_range / 2, angle_range);
 
@@ -232,6 +241,10 @@ std::array<float, 3> Diagram::cal_collision_data(const Diagram& diagram2) const 
 
     target_angle = std::atan2(rotated_points1[min_i][1] - q[1], rotated_points1[min_i][0] - q[0]);
     obs_angle = std::atan2(rotated_points2[min_j][1] - diagram2.q[1], rotated_points2[min_j][0] - diagram2.q[0]);
+    
+    if (is_collision && min_dist > 0){
+        min_dist *= -1;
+    }
 
     std::array<float, 3> collision_data = {
         target_angle,

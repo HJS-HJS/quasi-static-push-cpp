@@ -102,16 +102,18 @@ while True:
         start = time.time()
         state = viewer.run(u_input)
         viewer.render()
-        if i > 21:
+        if i > 19:
             u_input[4] = 1
         print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
         print(state[0])
-        print(state[1])
-        print(state[3])
-        print(state[4])
-        print(state[5])
+        # print(state[1])
+        # print(state[3])
+        # print(state[4])
+        # print(state[5])
         time.sleep(0.01)  # CPU 부하 방지
         if not state[1]: 
             print("dish out")
             time.sleep(1)
             break
+    print("finish")
+    
