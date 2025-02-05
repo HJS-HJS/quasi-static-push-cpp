@@ -3,6 +3,7 @@
 #include <pybind11/eigen.h>
 
 #include "viewer/viewer.h"
+#include "viewer/recorder.h"
 #include "simulation/quasi_state_sim.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
@@ -19,6 +20,8 @@ public:
         float scale = 400.0f,
         float tableWidth = 2.0,
         float tableHeight = 2.0,
+        float frame_rate = 100,
+        int frame_skip = 10,
         bool grid = true,
         bool visualise = true,
         bool move_to_target = true,
@@ -28,6 +31,8 @@ public:
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
             table_limit(std::array<float, 2>{tableWidth/2, tableHeight/2}),
+            frame_rate(frame_rate),
+            frame_skip(frame_skip),
             visualise(visualise), 
             show_closest_point(show_closest_point),
             move_to_target(move_to_target),
@@ -153,6 +158,8 @@ private:
     std::shared_ptr<ParamFunction> param;
     std::unique_ptr<QuasiStateSim> sim;
     std::array<float, 2> table_limit;
+    float frame_rate;
+    int frame_skip;
     bool visualise;
     bool show_closest_point;
     bool move_to_target;
@@ -169,7 +176,6 @@ private:
             throw std::runtime_error("Simulation not initialized. Call reset() first.");
         }
 
-        param->update_param();
 
         Eigen::Matrix2f _rot;
         if (move_to_target) {
@@ -191,22 +197,26 @@ private:
         transformed_u(2) = u(2);
         transformed_u(3) = u(3);
 
-        // 시뮬레이션 실행
-        auto ans = sim->run(transformed_u);
+        for (int i = 0; i < frame_skip; i++){
+            // 시뮬레이션 준비
+            param->update_param();
+            // 시뮬레이션 실행
+            auto ans = sim->run(transformed_u / frame_rate);
 
-        // 결과 가져오기
-        std::vector<float> qs = std::get<0>(ans);
-        std::vector<float> qp = std::get<1>(ans);
+            // 결과 가져오기
+            std::vector<float> qs = std::get<0>(ans);
+            std::vector<float> qp = std::get<1>(ans);
 
-        // 이전 상태 저장 후 업데이트
-        std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
-        std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
+            // 이전 상태 저장 후 업데이트
+            std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
+            std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
 
-        // 새로운 상태 적용
-        sliders.apply_v(qs_diff);
-        sliders.apply_q(qs);
-        pushers.apply_v(qp_diff);
-        pushers.apply_q(qp);
+            // 새로운 상태 적용
+            sliders.apply_v(qs_diff);
+            sliders.apply_q(qs);
+            pushers.apply_v(qp_diff);
+            pushers.apply_q(qp);
+        }
     }
 
     void addSlider_(std::string type, std::vector<float> param) {
@@ -244,6 +254,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
             - scale (float): Scale factor for visualization (default: 400.0).
             - tableWidth (float): Table width in meters (default: 2.0).
             - tableHeight (float): Table height in meters (default: 2.0).
+            - frame_rate (float): frame rate of the simulation [hz] (default: 100.0).
+            - frame_skip (float): continous frame of the simulation [frame] (default: 10.0).
             - grid (bool): Show grid in visualization (default: True).
             - visualise (bool): Enable visualization (default: True).
             - move_to_target (bool): Move to target position (default: True).
@@ -284,12 +296,14 @@ PYBIND11_MODULE(quasi_static_push, m) {
                 - "Linear": Returns a 1D NumPy array of floats.
                 - "Gray": Returns an (H, W) grayscale NumPy array.
         )pbdoc")
-        .def(py::init<int, int, float, float, float, bool, bool, bool, bool, std::string>(),
+        .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
-             py::arg("tableWidth") = 2.0,
-             py::arg("tableHeight") = 2.0,
+             py::arg("tableWidth") = 2.0f,
+             py::arg("tableHeight") = 2.0f,
+             py::arg("frame_rate") = 100.0f,
+             py::arg("frame_skip") = 10,
              py::arg("grid") = true,
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,
