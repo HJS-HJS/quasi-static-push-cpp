@@ -1,6 +1,7 @@
 ```bash
 sudo apt-get install libsdl2-dev
-sudo apt-get install libsdl2-gfx-dev 
+sudo apt-get install libsdl2-gfx-dev
+sudo apt-get install libopencv-dev
 ```
 
 ```bash
