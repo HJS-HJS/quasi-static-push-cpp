@@ -26,7 +26,6 @@ public:
         bool visualise = true,
         bool move_to_target = true,
         bool show_closest_point = true,
-        std::string state = "Image",
         bool recording_enabled = false,
         std::string recording_path = "recordings"
         ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, visualise),
@@ -38,7 +37,6 @@ public:
             visualise(visualise), 
             show_closest_point(show_closest_point),
             move_to_target(move_to_target),
-            state(state),
             recording_enabled(recording_enabled),
             recording_path(recording_path) {
         viewer.setGridSpacing(0.1f);
@@ -114,11 +112,13 @@ public:
     }
 
     py::tuple run(const std::vector<float>& u_input) {
-        simulate_(u_input);
+        bool mode_change = simulate_(u_input);
 
-        bool condition = isDishOut_();  // 특정 조건을 확인하는 함수
+        bool condition = isDishOut_(); 
+
         py::object image_state_ = getImageState();
-        py::object linear_state_ = getLinearState();
+        py::object slider_state_ = getSliderState();
+        py::object pusher_state_ = getPusherState();
 
         if (recording_enabled && recorder) {
             recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), {1.0f, 2.0f}, {3.0f, 4.0f, 5.0f}, {6.0f, 7.0f, 8.0f});
@@ -126,13 +126,7 @@ public:
         }
 
 
-        if (state == "Image") {
-            return py::make_tuple(condition, image_state_);
-        } 
-        else if (state == "Linear") {
-            return py::make_tuple(condition, linear_state_);
-        }
-        throw std::runtime_error("Invalid state type");
+        return py::make_tuple(mode_change, !condition, image_state_, mode, pusher_state_, slider_state_);
     }
 
     void render() {
@@ -149,10 +143,10 @@ public:
                     points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
                     points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
 
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.3f});
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.3f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.3f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.3f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.1f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.1f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.1f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.1f});
                 }
             }
             viewer.render(points, arrows);
@@ -172,7 +166,6 @@ private:
     bool visualise;
     bool show_closest_point;
     bool move_to_target;
-    std::string state;
     int mode;
 
     // Recorder
@@ -274,8 +267,17 @@ private:
         );
     } 
 
-    py::object getLinearState() {
-        std::vector<float> linear_state = {0.1f, 0.2f, 0.3f, 0.4f};  // 예제 데이터
+    py::object getSliderState() {
+        std::vector<float> linear_state = sliders.get_q();  // 예제 데이터
+        return py::array_t<float>(
+            {linear_state.size()},  // Shape (1D array)
+            {sizeof(float)},        // Strides
+            linear_state.data()     // Data pointer
+        );
+    }
+
+    py::object getPusherState() {
+        std::vector<float> linear_state = pushers.q;  // 예제 데이터
         return py::array_t<float>(
             {linear_state.size()},  // Shape (1D array)
             {sizeof(float)},        // Strides
@@ -359,10 +361,6 @@ PYBIND11_MODULE(quasi_static_push, m) {
             - visualise (bool): Enable visualization (default: True).
             - move_to_target (bool): Move to target position (default: True).
             - show_closest_point (bool): Highlight closest points in visualization (default: True).
-            - state (str): Type of state to return from `get_state()` and `run()`. Options:
-                - "Image": Returns an (H, W, 4) RGBA NumPy array.
-                - "Linear": Returns a 1D NumPy array of floats.
-                - "Gray": Returns an (H, W) grayscale NumPy array.
             
             Methods:
             --------
@@ -382,20 +380,15 @@ PYBIND11_MODULE(quasi_static_push, m) {
             run(u_input: List[float]) -> Tuple[bool, Union[numpy.ndarray, List[float]]]
                 Run the simulation and return a tuple `(bool, state)`.
 
-                - The first element (bool) indicates whether a specific condition is met (e.g., object out of bounds).
-                - The second element (state) depends on the `state` type:
-                    - "Image": (H, W, 4) RGBA NumPy array.
-                    - "Linear": 1D NumPy array of floats.
-                    - "Gray": (H, W) grayscale NumPy array.
+                - The first element (bool) indicates whether a mode change success.
+                - The second element (bool) indicates whether a dish is safe.
+                - The third element (H, W, 4) color image.
+                - The forth element (int) pusher mode.
+                - The fifth element 1D NumPy array of floats about pusher.
+                - The sixth element 1D NumPy array of floats about sliser.
 
-            get_state() -> Union[numpy.ndarray, List[float]]
-                Get the simulation state based on the selected `state` type.
-
-                - "Image": Returns an (H, W, 4) RGBA NumPy array.
-                - "Linear": Returns a 1D NumPy array of floats.
-                - "Gray": Returns an (H, W) grayscale NumPy array.
         )pbdoc")
-        .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, std::string, bool, std::string>(),
+        .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
@@ -407,7 +400,6 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,
              py::arg("show_closest_point") = true,
-             py::arg("state") = "Image",
              py::arg("recording_enabled") = false,
              py::arg("recording_path") = "recordings")
 
