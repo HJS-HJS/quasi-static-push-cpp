@@ -2,10 +2,9 @@
 
 QuasiStateSim::QuasiStateSim(int n_steps,
                              float threshold,
-                             std::shared_ptr<ParamFunction> param,
-                             bool perfect_u_control)
+                             std::shared_ptr<ParamFunction> param
+                             )
     : n_steps(n_steps),
-      perfect_u_control(perfect_u_control),
       threshold(threshold),
       param(param) {}
 
@@ -52,7 +51,7 @@ void QuasiStateSim::filterParameters() {
     mu_filtered = param->m_mu.block(0, 0, num_filtered, num_filtered);
 }
 
-std::tuple<std::vector<float>, std::vector<float>, bool> QuasiStateSim::run(const Eigen::VectorXf& u_input) {
+std::tuple<std::vector<float>, std::vector<float>, bool> QuasiStateSim::run(const Eigen::VectorXf& u_input, bool perfect_u_control) {
     Eigen::VectorXf qs = param->qs;
     Eigen::VectorXf qp = param->qp;
 

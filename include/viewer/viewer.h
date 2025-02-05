@@ -31,7 +31,8 @@ private:
         {"blue", {0, 0, 255, 255}},
         {"yellow", {255, 255, 0, 255}},
         {"white", {255, 255, 255, 255}},
-        {"black", {0, 0, 0, 255}}
+        {"black", {0, 0, 0, 255}},
+        {"pink", {255, 194, 205, 255}}
     };
 
     void drawGrid() const;
@@ -53,6 +54,8 @@ public:
     void addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName);
     void renderDiagram(const Diagram* diagram, const SDL_Color& color);
     void removeDiagram(const Diagram* diagram);
+    void changeDiagramColor(const Diagram* diagram, const std::string& newColorName);
+    void changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName);
     void reset(float newTableWidth, float newTableHeight, bool newDisplayWindow);
     // void render();
     void render(const std::vector<std::vector<float>>& points = {}, 

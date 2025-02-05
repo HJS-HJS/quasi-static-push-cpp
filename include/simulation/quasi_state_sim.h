@@ -11,14 +11,13 @@ class QuasiStateSim {
 public:
     QuasiStateSim(int n_steps,
                   float threshold,
-                  std::shared_ptr<ParamFunction> param,
-                  bool perfect_u_control = true);
+                  std::shared_ptr<ParamFunction> param
+                  );
 
-    std::tuple<std::vector<float>, std::vector<float>, bool> run(const Eigen::VectorXf& u_input);
+    std::tuple<std::vector<float>, std::vector<float>, bool> run(const Eigen::VectorXf& u_input, bool perfect_u_control);
 
 private:
     int n_steps;
-    bool perfect_u_control;
     float threshold;
     std::shared_ptr<ParamFunction> param;
 

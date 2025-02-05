@@ -26,7 +26,9 @@ public:
         bool visualise = true,
         bool move_to_target = true,
         bool show_closest_point = true,
-        std::string state = "Image"
+        std::string state = "Image",
+        bool recording_enabled = false,
+        std::string recording_path = "recordings"
         ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, visualise),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
@@ -36,9 +38,20 @@ public:
             visualise(visualise), 
             show_closest_point(show_closest_point),
             move_to_target(move_to_target),
-            state(state) {
+            state(state),
+            recording_enabled(recording_enabled),
+            recording_path(recording_path) {
         viewer.setGridSpacing(0.1f);
-        reset();
+        // reset();
+        if (recording_enabled) {
+            recorder = std::make_unique<Recorder>(recording_path, 1.0 / frame_rate * frame_skip, window_width, window_height);
+        }
+    }
+
+    ~PySimulationViewer() {
+        if (recording_enabled && recorder) {
+            recorder->stopRecording();
+        }
     }
 
     void reset() {
@@ -65,6 +78,7 @@ public:
         float newtableWidth,
         float newtableHeight
     ) {
+        mode = -1;
         sliders.clear();
         pushers.clear();
         param.reset();
@@ -85,24 +99,40 @@ public:
         sim = std::make_unique<QuasiStateSim>(
             100,
             0.05,
-            param,
-            false
+            param
         );
 
         viewer.reset(newtableWidth, newtableHeight, true);
-        viewer.addDiagram(pushers.get_pushers(), "red");
+        viewer.addDiagram(pushers.get_pushers(), "pink");
         viewer.addDiagram(sliders.get_sliders(), "blue");
+        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "green");
         
         table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
+
+        stopRecording();
+        startRecording();
     }
 
     py::tuple run(const std::vector<float>& u_input) {
         simulate_(u_input);
 
         bool condition = isDishOut_();  // 특정 조건을 확인하는 함수
-        py::object state_data = get_state();
+        py::object image_state_ = getImageState();
+        py::object linear_state_ = getLinearState();
 
-        return py::make_tuple(condition, state_data);
+        if (recording_enabled && recorder) {
+            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), {1.0f, 2.0f}, {3.0f, 4.0f, 5.0f}, {6.0f, 7.0f, 8.0f});
+            std::cout<<"record frame to video" <<std::endl;
+        }
+
+
+        if (state == "Image") {
+            return py::make_tuple(condition, image_state_);
+        } 
+        else if (state == "Linear") {
+            return py::make_tuple(condition, linear_state_);
+        }
+        throw std::runtime_error("Invalid state type");
     }
 
     void render() {
@@ -129,27 +159,6 @@ public:
         }
     }
 
-    py::object get_state() {
-        if (state == "Image") {
-            auto surface = viewer.getRenderedImage();
-            return py::array_t<uint8_t>(
-                {surface->h, surface->w, 4}, 
-                {surface->pitch, 4, 1},
-                static_cast<uint8_t*>(surface->pixels), 
-                py::capsule(surface, [](void *p) { SDL_FreeSurface(static_cast<SDL_Surface*>(p)); })
-            );
-        } 
-        else if (state == "Linear") {
-            std::vector<float> linear_state = {0.1f, 0.2f, 0.3f, 0.4f};  // 예제 데이터
-            return py::array_t<float>(
-                {linear_state.size()},  // Shape (1D array)
-                {sizeof(float)},        // Strides
-                linear_state.data()     // Data pointer
-            );
-        } 
-        throw std::runtime_error("Invalid state type");
-    }
-
 private:
     SimulationViewer viewer;
     ObjectSlider sliders;
@@ -164,6 +173,12 @@ private:
     bool show_closest_point;
     bool move_to_target;
     std::string state;
+    int mode;
+
+    // Recorder
+    bool recording_enabled;
+    std::string recording_path;
+    std::unique_ptr<Recorder> recorder;
 
     bool isDishOut_() {
     return std::any_of(sliders.begin(), sliders.end(), [this](const auto& dish) {
@@ -171,11 +186,23 @@ private:
         });
     }
 
-    void simulate_(const std::vector<float>& u_input){
+    bool simulate_(const std::vector<float>& u_input) {
         if (!sim) {
             throw std::runtime_error("Simulation not initialized. Call reset() first.");
         }
 
+        bool success = true;
+
+        if(u_input.back() > 0.5f && mode < 0){
+            param->update_param();
+            if ((param->phi.array() < 0).any()){
+                success = false;
+            }
+            else{
+                mode = 0;
+                viewer.changeDiagramColor(pushers.get_pushers(), "red");
+            }
+        }
 
         Eigen::Matrix2f _rot;
         if (move_to_target) {
@@ -201,22 +228,59 @@ private:
             // 시뮬레이션 준비
             param->update_param();
             // 시뮬레이션 실행
-            auto ans = sim->run(transformed_u / frame_rate);
 
-            // 결과 가져오기
-            std::vector<float> qs = std::get<0>(ans);
-            std::vector<float> qp = std::get<1>(ans);
+            if(mode == -1){
+                auto ans = sim->run(transformed_u / frame_rate, true);
 
-            // 이전 상태 저장 후 업데이트
-            std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
-            std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
+                // 결과 가져오기
+                std::vector<float> qp = std::get<1>(ans);
 
-            // 새로운 상태 적용
-            sliders.apply_v(qs_diff);
-            sliders.apply_q(qs);
-            pushers.apply_v(qp_diff);
-            pushers.apply_q(qp);
+                // 이전 상태 저장 후 업데이트
+                std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
+
+                // 새로운 상태 적용
+                pushers.apply_v(qp_diff);
+                pushers.apply_q(qp);    
+            }
+            else{
+                auto ans = sim->run(transformed_u / frame_rate, false);
+
+                // 결과 가져오기
+                std::vector<float> qs = std::get<0>(ans);
+                std::vector<float> qp = std::get<1>(ans);
+
+                // 이전 상태 저장 후 업데이트
+                std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
+                std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
+
+                // 새로운 상태 적용
+                sliders.apply_v(qs_diff);
+                sliders.apply_q(qs);
+                pushers.apply_v(qp_diff);
+                pushers.apply_q(qp);    
+            }
         }
+
+        return success;
+    }
+
+    py::object getImageState() {
+        auto surface = viewer.getRenderedImage();
+        return py::array_t<uint8_t>(
+            {surface->h, surface->w, 4}, 
+            {surface->pitch, 4, 1},
+            static_cast<uint8_t*>(surface->pixels), 
+            py::capsule(surface, [](void *p) { SDL_FreeSurface(static_cast<SDL_Surface*>(p)); })
+        );
+    } 
+
+    py::object getLinearState() {
+        std::vector<float> linear_state = {0.1f, 0.2f, 0.3f, 0.4f};  // 예제 데이터
+        return py::array_t<float>(
+            {linear_state.size()},  // Shape (1D array)
+            {sizeof(float)},        // Strides
+            linear_state.data()     // Data pointer
+        );
     }
 
     void addSlider_(std::string type, std::vector<float> param) {
@@ -237,6 +301,41 @@ private:
         std::vector<float> result(a.size());
         std::transform(a.begin(), a.end(), b.begin(), result.begin(), std::minus<float>());
         return result;
+    }
+
+    cv::Mat SDL_SurfaceToMat(SDL_Surface* surface) {
+        if (!surface) {
+            throw std::runtime_error("SDL_Surface is null!");
+        }
+
+        // SDL_Surface에서 픽셀 데이터를 가져오기
+        int width = surface->w;
+        int height = surface->h;
+        int channels = surface->format->BytesPerPixel;
+
+        // OpenCV의 데이터 타입 결정 (RGB or RGBA)
+        int type = (channels == 4) ? CV_8UC4 : CV_8UC3;
+
+        // SDL_Surface의 픽셀 데이터를 OpenCV의 cv::Mat으로 복사
+        cv::Mat mat(height, width, type, surface->pixels);
+
+        // SDL은 픽셀 데이터를 아래에서 위로 저장하므로, OpenCV에서 뒤집기 필요
+        cv::Mat flipped;
+        cv::flip(mat, flipped, 0);
+
+        return flipped;
+    }
+
+    void stopRecording() {
+        if (recording_enabled && recorder) {
+            recorder->stopRecording();
+        }
+    }
+
+    void startRecording() {
+        if (recording_enabled) {
+            recorder->startRecording();
+        }
     }
 
 };
@@ -296,7 +395,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
                 - "Linear": Returns a 1D NumPy array of floats.
                 - "Gray": Returns an (H, W) grayscale NumPy array.
         )pbdoc")
-        .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, std::string>(),
+        .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, std::string, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
@@ -308,7 +407,9 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,
              py::arg("show_closest_point") = true,
-             py::arg("state") = "Image")
+             py::arg("state") = "Image",
+             py::arg("recording_enabled") = false,
+             py::arg("recording_path") = "recordings")
 
         .def("reset", py::overload_cast<>(&PySimulationViewer::reset))
         .def("reset", py::overload_cast<
@@ -333,12 +434,6 @@ PYBIND11_MODULE(quasi_static_push, m) {
             py::arg("newtableHeight") = 2.0f
         )
         .def("render", &PySimulationViewer::render)
-        .def("get_state", &PySimulationViewer::get_state, R"pbdoc(
-            Get the state based on the current state type.
-
-            - "Image": Returns an (H, W, 4) RGBA NumPy array.
-            - "Linear": Returns a NumPy array of floats.
-        )pbdoc")
         .def("run", &PySimulationViewer::run, R"pbdoc(
             Run the simulation and return a tuple (bool, state).
 

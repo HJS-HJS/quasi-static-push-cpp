@@ -133,6 +133,35 @@ void SimulationViewer::removeDiagram(const Diagram* diagram) {
     }
     currentDiagrams.erase(diagram);
 }
+void SimulationViewer::changeDiagramColor(const Diagram* diagram, const std::string& newColorName) {
+    if (colorMap.find(newColorName) == colorMap.end()) {
+        throw std::invalid_argument("Color name not found in predefined colors: " + newColorName);
+    }
+
+    auto it = diagramTextures.find(diagram);
+    if (it != diagramTextures.end()) {
+        SDL_DestroyTexture(it->second);
+        diagramTextures.erase(it);
+    }
+
+    SDL_Color newColor = colorMap[newColorName];
+    renderDiagram(diagram, newColor);
+}
+void SimulationViewer::changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName) {
+    if (colorMap.find(newColorName) == colorMap.end()) {
+        throw std::invalid_argument("Color name not found in predefined colors: " + newColorName);
+    }
+    for (const auto& diagram : diagrams) {
+        auto it = diagramTextures.find(diagram.get());
+        if (it != diagramTextures.end()) {
+            SDL_DestroyTexture(it->second);
+            diagramTextures.erase(it);
+        }
+
+        SDL_Color newColor = colorMap[newColorName];
+        renderDiagram(diagram.get(), newColor);
+    }
+}
 
 void SimulationViewer::reset(float newtableWidth, float newtableHeight, bool newDisplayWindow) {
     tableWidth = (int)(newtableWidth * unit);
