@@ -41,7 +41,8 @@ void Recorder::startRecording() {
     metadataFile << "[";
 
     int fps = static_cast<int>(1.0 / frameTimeSec);
-    int fourcc = cv::VideoWriter::fourcc('H', '2', '6', '4');  // ✅ H.264 코덱 사용
+    // int fourcc = cv::VideoWriter::fourcc('H', '2', '6', '4');  // H.264 코덱 사용
+    int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');  // H.264 코덱 사용
     videoWriter.open(videoFileName, fourcc, fps, cv::Size(width, height), true);
 
     if (!videoWriter.isOpened()) {
