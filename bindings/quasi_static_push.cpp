@@ -155,32 +155,36 @@ public:
      */
     SimulationResult run(const std::vector<float>& u_input) {
         simulate_(u_input);
-        bool condition = isDishOut_(); 
-        int  grasp = grasp_();
-        renderViewer_();
+        int condition = isDishOut_(); 
+        int grasp = grasp_();
 
         int done = DONE_NONE;
         std::vector<std::string> reasons;
 
-        if (condition) {
+        if (condition >= 0) {
             done |= DONE_FALL_OUT;
             reasons.push_back("DONE_FALL_OUT");
+            // viewer.removeDiagram(sliders[condition]);
+            sliders.remove(condition);
         }
         if (grasp > 0) {
             done |= DONE_GRASP_SUCCESS;
             reasons.push_back("DONE_GRASP_SUCCESS");
+            // viewer.removeDiagram(sliders[0]);
+            sliders.remove(0);
         }
         else if (grasp < 0) {
             done |= DONE_GRASP_FAILED;
             reasons.push_back("DONE_GRASP_FAILED");
         }
 
+        renderViewer_();
+
         // Record image and data
         if (recording_enabled && recorder) {
             recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), pushers.q, sliders.get_status(), u_input);
         }
         
-        std::cout<< std::endl;
         return {
             done,
             reasons,
@@ -211,16 +215,18 @@ private:
     std::string recording_path;
     std::unique_ptr<Recorder> recorder;
 
-    /**
-     * @brief Checks if any object has fallen out of the table bounds.
-     * @return True if an object is out of bounds, otherwise false.
-     */
-    bool isDishOut_() {
-    return std::any_of(sliders.begin(), sliders.end(), [this](const auto& dish) {
-        return std::abs(dish->q[0]) > table_limit[0] || std::abs(dish->q[1]) > table_limit[1];
+    int isDishOut_() {
+        auto it = std::find_if(sliders.begin(), sliders.end(), [this](const auto& dish) {
+            return std::abs(dish->q[0]) > table_limit[0] || std::abs(dish->q[1]) > table_limit[1];
         });
-    }
 
+        if (it != sliders.end()) {
+            return it - sliders.begin();
+        }
+        else{
+            return -1;
+        }
+    }
     bool simulate_(const std::vector<float>& u_input) {
         if (!sim) {
             throw std::runtime_error("Simulation not initialized. Call reset() first.");
@@ -358,25 +364,16 @@ private:
     } 
 
     py::object getSliderState() {
-        std::vector<std::vector<float>> linear_state = sliders.get_status();  // 2D vector
+        std::vector<std::vector<float>> linear_state = sliders.get_status();
 
-        size_t rows = linear_state.size();
-        size_t cols = rows > 0 ? linear_state[0].size() : 0;
-
-        std::vector<float> flat_data;
-        flat_data.reserve(rows * cols);
-
+        py::list py_list;
         for (const auto& row : linear_state) {
-            flat_data.insert(flat_data.end(), row.begin(), row.end());
+            py_list.append(py::array_t<float>(row.size(), row.data())); // 각 행을 개별 NumPy 배열로 변환
         }
 
-        return py::array_t<float>(
-            {rows, cols},              // Shape (2D array)
-            {cols * sizeof(float),     // Strides: row stride
-            sizeof(float)},            // Strides: column stride
-            flat_data.data()           // Data pointer
-        );
+        return py::array(py_list); // Python의 np.array(list, dtype=object)와 유사
     }
+
 
     py::object getPusherState() {
         std::vector<float> linear_state = pushers.q;  // 예제 데이터
