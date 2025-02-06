@@ -2,8 +2,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/eigen.h>
 
-#include "viewer/viewer.h"
-#include "viewer/recorder.h"
+#include "utils/viewer.h"
+#include "utils/recorder.h"
 #include "simulation/quasi_state_sim.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
@@ -12,7 +12,60 @@
 
 namespace py = pybind11;
 
+/**
+ * @file quasi_static_push.cpp
+ * @brief Python bindings for the quasi-static push simulation using pybind11.
+ *
+ * This module integrates a physics-based simulation with a visualization engine.
+ * It allows users to configure the simulation, execute a step, and retrieve the state.
+ * The main simulation class, `PySimulationViewer`, manages interactions with objects
+ * such as pushers and sliders, tracks simulation progress, and handles visualization.
+ *
+ * Features:
+ * - Object pushing and grasping simulation.
+ * - Detection of simulation termination conditions.
+ * - Image rendering and state retrieval.
+ * - Support for recording simulation frames.
+ */
+
+// Enum representing the reasons why a simulation might end
+enum SimulationDoneReason {
+    DONE_NONE = 0,          // Default: No termination condition met
+    DONE_FALL_OUT = 1,      // The object has fallen outside the table bounds
+    DONE_GRASP_SUCCESS = 2, // Successful grasp detected
+    DONE_GRASP_FAILED = 4   // Grasp failed due to insufficient grip
+};
+
+// Structure to store the simulation results
+struct __attribute__ ((visibility("hidden"))) SimulationResult {
+    int done;                       // Bitwise OR of SimulationDoneReason values
+    std::vector<std::string> reasons; // List of reasons why the simulation ended
+    int mode;                       // Current simulation mode
+    py::object image_state;         // Rendered image of the simulation
+    py::object pusher_state;        // State of the pusher object
+    py::object slider_state;        // State of the slider object
+};
+
+
+// Main simulation class that integrates viewer, physics simulation, and interaction
 class PySimulationViewer {
+    /**
+     * @brief Constructor for the PySimulationViewer.
+     *
+     * @param window_width Width of the simulation window.
+     * @param window_height Height of the simulation window.
+     * @param scale Visualization scale factor.
+     * @param tableWidth Width of the simulation table.
+     * @param tableHeight Height of the simulation table.
+     * @param frame_rate Frame rate of the simulation.
+     * @param frame_skip Number of frames to skip during simulation.
+     * @param grid Enable or disable grid visualization.
+     * @param visualise Enable or disable rendering.
+     * @param move_to_target Enable automatic movement to a target.
+     * @param show_closest_point Highlight closest contact points in visualization.
+     * @param recording_enabled Enable recording of simulation frames.
+     * @param recording_path Path to save recorded frames.
+     */
 public:
     PySimulationViewer(
         int window_width = 1600, 
@@ -52,24 +105,7 @@ public:
         }
     }
 
-    void reset() {
-        reset(
-            {
-                std::make_tuple("circle", std::vector<float>{0.0, -0.5, 0.0, 0.45}),
-                std::make_tuple("circle", std::vector<float>{0.5, 0.3, 0.0, 0.45}),
-                std::make_tuple("circle", std::vector<float>{-0.5, 0.3, 0.0, 0.45}),
-                std::make_tuple("circle", std::vector<float>{0.0, 1.1, 0.0, 0.45}),
-                std::make_tuple("circle", std::vector<float>{1.0, 1.1, 0.0, 0.45}),
-                std::make_tuple("circle", std::vector<float>{-1.0, 1.1, 0.0, 0.45})
-            },
-            {
-                3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f
-            },
-            2.0,
-            2.0
-        );
-    }
-
+    // Reset the simulation with default parameters
     void reset(
         std::vector<std::tuple<std::string, std::vector<float>>> slider_inputs,
         std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float> pusher_input,
@@ -111,46 +147,47 @@ public:
         startRecording();
     }
 
-    py::tuple run(const std::vector<float>& u_input) {
+    /**
+     * @brief Runs the simulation for one step.
+     *
+     * @param u_input Input control vector for the simulation step.
+     * @return SimulationResult containing simulation status, rendered image, and state information.
+     */
+    SimulationResult run(const std::vector<float>& u_input) {
         bool mode_change = simulate_(u_input);
-
         bool condition = isDishOut_(); 
-
-        py::object image_state_ = getImageState();
-        py::object slider_state_ = getSliderState();
-        py::object pusher_state_ = getPusherState();
+        int  grasp = grasp_();
+        renderViewer_();
 
         if (recording_enabled && recorder) {
             recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), {1.0f, 2.0f}, {3.0f, 4.0f, 5.0f}, {6.0f, 7.0f, 8.0f});
             std::cout<<"record frame to video" <<std::endl;
         }
 
+        int done = DONE_NONE;
+        std::vector<std::string> reasons;
 
-        return py::make_tuple(mode_change, !condition, image_state_, mode, pusher_state_, slider_state_);
-    }
-
-    void render() {
-        if (!show_closest_point){   
-            viewer.render();
+        if (condition) {
+            done |= DONE_FALL_OUT;
+            reasons.push_back("DONE_FALL_OUT");
         }
-        else{
-            std::vector<std::vector<float>> points;
-            std::vector<std::tuple<float, float, float, float>> arrows;
-
-            for (const auto& pusher : pushers) {
-                for (const auto& slider : sliders) {
-                    auto collision_data = pusher->cal_collision_data(*slider);
-                    points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
-                    points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
-
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.1f});
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.1f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.1f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.1f});
-                }
-            }
-            viewer.render(points, arrows);
+        if (grasp > 0) {
+            done |= DONE_GRASP_SUCCESS;
+            reasons.push_back("DONE_GRASP_SUCCESS");
         }
+        else if (grasp < 0) {
+            done |= DONE_GRASP_FAILED;
+            reasons.push_back("DONE_GRASP_FAILED");
+        }
+
+        return {
+            done,
+            reasons,
+            mode,
+            getImageState(),
+            getPusherState(),
+            getSliderState()
+        };
     }
 
 private:
@@ -173,6 +210,10 @@ private:
     std::string recording_path;
     std::unique_ptr<Recorder> recorder;
 
+    /**
+     * @brief Checks if any object has fallen out of the table bounds.
+     * @return True if an object is out of bounds, otherwise false.
+     */
     bool isDishOut_() {
     return std::any_of(sliders.begin(), sliders.end(), [this](const auto& dish) {
         return std::abs(dish->q[0]) > table_limit[0] || std::abs(dish->q[1]) > table_limit[1];
@@ -257,6 +298,54 @@ private:
         return success;
     }
 
+    int grasp_() {
+        if (mode == 0 && isGraspReady()){
+            mode = 1;
+            Eigen::VectorXf transformed_u_(4);
+            transformed_u_ << 0.0f, 0.0f, 0.0f, -0.5f;
+            float width_ = pushers.q[3];
+            int finger = pushers.size();
+            while (true) {
+                param->update_param();
+
+                auto ans = sim->run(transformed_u_ / frame_rate, false);
+
+                // 결과 가져오기
+                std::vector<float> qs = std::get<0>(ans);
+                std::vector<float> qp = std::get<1>(ans);
+
+                // 이전 상태 저장 후 업데이트
+                std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
+                std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
+
+                // 새로운 상태 적용
+                sliders.apply_v(qs_diff);
+                sliders.apply_q(qs);
+                pushers.apply_v(qp_diff);
+                pushers.apply_q(qp);
+
+                if ((param->phi.head(finger).array() < 0.015).any() && (param->phi.head(finger).array() != 0).all()){
+                    return 1;
+                } 
+                else if ((width_ - pushers.q[3]) < 0.5 / frame_rate * 0.9){
+                    return -1;
+                }
+                width_ = pushers.q[3];
+                renderViewer_();
+            }
+        }
+        return 0;
+    }
+
+    bool isGraspReady(){
+        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.015){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
     py::object getImageState() {
         auto surface = viewer.getRenderedImage();
         return py::array_t<uint8_t>(
@@ -315,17 +404,19 @@ private:
         int height = surface->h;
         int channels = surface->format->BytesPerPixel;
 
+        cv::Mat rgbImage;
         // OpenCV의 데이터 타입 결정 (RGB or RGBA)
-        int type = (channels == 4) ? CV_8UC4 : CV_8UC3;
+        if (channels == 4){
+            // SDL_Surface의 픽셀 데이터를 OpenCV의 cv::Mat으로 복사
+            cv::Mat mat(height, width, CV_8UC4, surface->pixels);
+            cv::cvtColor(mat, rgbImage, cv::COLOR_BGRA2BGR);
+        }
+        else{
+            // SDL_Surface의 픽셀 데이터를 OpenCV의 cv::Mat으로 복사
+            rgbImage = cv::Mat(height, width, CV_8UC3, surface->pixels);
+        }
 
-        // SDL_Surface의 픽셀 데이터를 OpenCV의 cv::Mat으로 복사
-        cv::Mat mat(height, width, type, surface->pixels);
-
-        // SDL은 픽셀 데이터를 아래에서 위로 저장하므로, OpenCV에서 뒤집기 필요
-        cv::Mat flipped;
-        cv::flip(mat, flipped, 0);
-
-        return flipped;
+        return rgbImage;
     }
 
     void stopRecording() {
@@ -340,11 +431,47 @@ private:
         }
     }
 
+    void renderViewer_() {
+        if (!show_closest_point){   
+            viewer.render();
+        }
+        else{
+            std::vector<std::vector<float>> points;
+            std::vector<std::tuple<float, float, float, float>> arrows;
+
+            for (const auto& pusher : pushers) {
+                for (const auto& slider : sliders) {
+                    auto collision_data = pusher->cal_collision_data(*slider);
+                    points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
+                    points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
+
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.1f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.1f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.1f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.1f});
+                }
+            }
+            viewer.render(points, arrows);
+        }
+    }
+
 };
 
 PYBIND11_MODULE(quasi_static_push, m) {
     m.doc() = "Quasi-static push simulation module";
-
+    py::enum_<SimulationDoneReason>(m, "SimulationDoneReason")
+        .value("NONE", DONE_NONE)
+        .value("DONE_FALL_OUT", DONE_FALL_OUT)
+        .value("DONE_GRASP_SUCCESS", DONE_GRASP_SUCCESS)
+        .value("DONE_GRASP_FAILED", DONE_GRASP_FAILED)
+        .export_values();
+    py::class_<SimulationResult>(m, "SimulationResult")
+        .def_readonly("done", &SimulationResult::done)
+        .def_readonly("reasons", &SimulationResult::reasons)
+        .def_readonly("mode", &SimulationResult::mode)
+        .def_readonly("image_state", &SimulationResult::image_state)
+        .def_readonly("pusher_state", &SimulationResult::pusher_state)
+        .def_readonly("slider_state", &SimulationResult::slider_state);
     py::class_<PySimulationViewer>(m, "SimulationViewer",
         R"pbdoc(
             SimulationViewer for quasi-static push simulation.
@@ -403,7 +530,6 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("recording_enabled") = false,
              py::arg("recording_path") = "recordings")
 
-        .def("reset", py::overload_cast<>(&PySimulationViewer::reset))
         .def("reset", py::overload_cast<
                 std::vector<std::tuple<std::string, std::vector<float>>>,
                 std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float>,
@@ -425,7 +551,6 @@ PYBIND11_MODULE(quasi_static_push, m) {
             py::arg("newtableWidth") = 2.0f,
             py::arg("newtableHeight") = 2.0f
         )
-        .def("render", &PySimulationViewer::render)
         .def("run", &PySimulationViewer::run, R"pbdoc(
             Run the simulation and return a tuple (bool, state).
 

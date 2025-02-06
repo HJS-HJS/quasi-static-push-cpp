@@ -1,4 +1,4 @@
-#include "viewer/viewer.h"
+#include "utils/viewer.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
 #include "diagram/diagram_all.h"

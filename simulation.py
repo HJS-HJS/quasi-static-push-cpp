@@ -14,9 +14,10 @@ viewer = quasi_static_push.SimulationViewer(
     # table_size_x = 1.5,
     # table_size_y = 1.0,
     # visualise = False,
-    frame_skip = 10,
-    # show_closest_point = False,
-    show_closest_point = True,
+    frame_skip = 1,
+    recording_enabled = True,
+    show_closest_point = False,
+    # show_closest_point = True,
     )
 
 # 시뮬레이션 초기화
@@ -71,12 +72,12 @@ unit_w_speed = 1.0
 
 while True:
     slider_inputs = [
-        ("circle", [0.0, -0.1, 0.0, 0.15]),
-        ("circle", [0.2, 0.2, 0.0, 0.15]),
-        ("circle", [-0.2, 0.2, 0.0, 0.15]),
-        ("ellipse", [0.0, 0.6, np.random.random(), 0.15, 0.12]),
-        ("ellipse", [0.3, 0.6, np.random.random(), 0.15, 0.10]),
-        ("ellipse", [-0.3, 0.6, np.random.random(), 0.15, 0.16]),
+        ("circle", [0.0, -0.1, 0.0, 0.13]),
+        ("circle", [0.2, 0.2, 0.0, 0.13]),
+        ("circle", [-0.2, 0.2, 0.0, 0.13]),
+        ("ellipse", [0.0, 0.6, np.random.random(), 0.13, 0.12]),
+        ("ellipse", [0.3, 0.6, np.random.random(), 0.13, 0.10]),
+        ("ellipse", [-0.3, 0.6, np.random.random(), 0.13, 0.16]),
     ]
 
     # # 푸셔 입력값 (정수, 실수, 문자열, 딕셔너리, 실수 7개)
@@ -87,8 +88,8 @@ while True:
     )
 
     # 새로운 테이블 크기
-    newtableWidth = 1.5 + np.random.random() * 0.5
-    newtableHeight = 1.5 + np.random.random() * 0.5
+    newtableWidth = 3 + np.random.random() * 0.5
+    newtableHeight = 3 + np.random.random() * 0.5
     
     viewer.reset(
         slider_inputs = slider_inputs,
@@ -97,23 +98,26 @@ while True:
         newtableHeight = newtableHeight
     )
 
-    u_input = [0.1, 0.0, 0.000, 0.00, 0]
-    for i in range(40):
-        start = time.time()
-        state = viewer.run(u_input)
-        viewer.render()
-        if i > 19:
+    u_input = [0.5, 0.0, 0.000, 0.1, 0]
+    for i in range(1000):
+        if i > 100:
             u_input[4] = 1
+            time.sleep(0.1)
+        start = time.time()
+        result = viewer.run(u_input)
         print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
-        print(state[0])
-        # print(state[1])
-        # print(state[3])
-        # print(state[4])
-        # print(state[5])
-        time.sleep(0.01)  # CPU 부하 방지
-        if not state[1]: 
-            print("dish out")
+
+        time.sleep(0.0001)  # CPU 부하 방지
+        if result.done: 
+            print(result.reasons)
             time.sleep(1)
             break
     print("finish")
     
+
+# int done;
+# std::vector<std::string> reasons;
+# py::object image_state;
+# int mode;
+# py::object pusher_state;
+# py::object slider_state;

@@ -10,37 +10,39 @@
 #include <filesystem>
 #include <sstream>
 #include <iomanip>
+#include <thread>
 
 using json = nlohmann::json;
 
 class Recorder {
 public:
-    Recorder(const std::string& saveDirectory, double frameTimeSec);
+    Recorder(const std::string& saveDirectory, double frameTimeSec, int width = 800, int height = 600);
     ~Recorder();
 
-    void startRecording(int fps = 30);
+    void startRecording();
     void saveFrame(const cv::Mat& frame, const std::vector<float>& pusher, 
                    const std::vector<float>& sliders, const std::vector<float>& action);
     void stopRecording();
-
-    std::function<bool(cv::Mat&, std::vector<float>&, std::vector<float>&, std::vector<float>&)> play();
 
 private:
     std::string saveDirectory;
     double frameTimeSec;
     int frameCount;
-    int videoIndex;
+    bool recording;
+    int width;
+    int height;
 
     cv::VideoWriter videoWriter;
-    bool recording;
-
     std::ofstream metadataFile;
+    std::string videoFileName;
+    std::string metadataFileName;
 
     void ensureDirectoryExists();
     std::string generateVideoFileName();
-    std::string getMetadataFileName();
+    std::string getVideoFileName();
     void saveMetadata(int frameIndex, const std::vector<float>& pusher, 
                       const std::vector<float>& sliders, const std::vector<float>& action);
+    void checkVideoIntegrity();
 };
 
 #endif // RECORDER_H
