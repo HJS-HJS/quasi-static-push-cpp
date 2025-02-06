@@ -159,11 +159,6 @@ public:
         int  grasp = grasp_();
         renderViewer_();
 
-        if (recording_enabled && recorder) {
-            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), {1.0f, 2.0f}, {3.0f, 4.0f, 5.0f}, {6.0f, 7.0f, 8.0f});
-            std::cout<<"record frame to video" <<std::endl;
-        }
-
         int done = DONE_NONE;
         std::vector<std::string> reasons;
 
@@ -180,6 +175,12 @@ public:
             reasons.push_back("DONE_GRASP_FAILED");
         }
 
+        // Record image and data
+        if (recording_enabled && recorder) {
+            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), pushers.q, sliders.get_status(), u_input);
+        }
+        
+        std::cout<< std::endl;
         return {
             done,
             reasons,

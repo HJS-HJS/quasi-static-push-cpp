@@ -21,7 +21,7 @@ public:
 
     void startRecording();
     void saveFrame(const cv::Mat& frame, const std::vector<float>& pusher, 
-                   const std::vector<float>& sliders, const std::vector<float>& action);
+                   const std::vector<std::vector<float>>& sliders, const std::vector<float>& action);
     void stopRecording();
 
 private:
@@ -41,7 +41,7 @@ private:
     std::string generateVideoFileName();
     std::string getVideoFileName();
     void saveMetadata(int frameIndex, const std::vector<float>& pusher, 
-                      const std::vector<float>& sliders, const std::vector<float>& action);
+                      const std::vector<std::vector<float>>& sliders, const std::vector<float>& action);
     void checkVideoIntegrity();
 };
 

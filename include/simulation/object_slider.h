@@ -63,6 +63,9 @@ public:
     // Get radii of all sliders
     std::vector<float> get_radius() const;
 
+    // Get combined q and shape param of all sliders
+    std::vector<std::vector<float>> get_status() const;
+
     // Remove a slider by index
     void remove(size_t index);
 

@@ -66,6 +66,17 @@ std::vector<float> ObjectSlider::get_radius() const {
     return result;
 }
 
+std::vector<std::vector<float>> ObjectSlider::get_status() const {
+    std::vector<std::vector<float>> result;
+    for (const auto& slider : sliders) {
+        std::vector<float> slider_state;
+        slider_state.insert(slider_state.end(), slider->q.data(), slider->q.data() + 3);
+        slider_state.insert(slider_state.end(), slider->shape_params.begin(), slider->shape_params.end());
+        result.push_back(slider_state);
+    }
+    return result;
+}
+
 void ObjectSlider::remove(size_t index) {
     if (index >= sliders.size()) {
         throw std::out_of_range("Index out of range");

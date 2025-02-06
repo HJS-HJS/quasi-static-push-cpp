@@ -45,17 +45,17 @@ void Recorder::startRecording() {
     videoWriter.open(videoFileName, fourcc, fps, cv::Size(width, height), true);
 
     if (!videoWriter.isOpened()) {
-        std::cerr << "[Recorder] ❌ Failed to open video file for recording!" << std::endl;
+        // std::cerr << "[Recorder] ❌ Failed to open video file for recording!" << std::endl;
         return;
     }
 
     recording = true;
     frameCount = 0;
-    std::cout << "[Recorder] 🎥 Recording started: " << videoFileName << std::endl;
+    // std::cout << "[Recorder] 🎥 Recording started: " << videoFileName << std::endl;
 }
 
 void Recorder::saveFrame(const cv::Mat& frame, const std::vector<float>& pusher, 
-                         const std::vector<float>& sliders, const std::vector<float>& action) {
+                         const std::vector<std::vector<float>>& sliders, const std::vector<float>& action) {
     if (!recording || !videoWriter.isOpened()) return;
 
     if (frame.empty()) {
@@ -72,11 +72,11 @@ void Recorder::saveFrame(const cv::Mat& frame, const std::vector<float>& pusher,
     saveMetadata(frameCount, pusher, sliders, action);
     frameCount++;
 
-    std::cout << "[Recorder] 📸 Frame " << frameCount << " saved." << std::endl;
+    // std::cout << "[Recorder] 📸 Frame " << frameCount << " saved." << std::endl;
 }
 
 void Recorder::saveMetadata(int frameIndex, const std::vector<float>& pusher, 
-                            const std::vector<float>& sliders, const std::vector<float>& action) {
+                            const std::vector<std::vector<float>>& sliders, const std::vector<float>& action) {
     json jsonData;
     jsonData["frame"] = frameIndex;
     jsonData["time"] = frameIndex * frameTimeSec;
@@ -90,7 +90,7 @@ void Recorder::saveMetadata(int frameIndex, const std::vector<float>& pusher,
 void Recorder::stopRecording() {
     if (!recording) return;
 
-    std::cout << "[Recorder] 🛑 Stopping recording. Total frames recorded: " << frameCount << std::endl;
+    // std::cout << "[Recorder] 🛑 Stopping recording. Total frames recorded: " << frameCount << std::endl;
 
     videoWriter.release();
     metadataFile << "\n]";
@@ -98,19 +98,19 @@ void Recorder::stopRecording() {
     recording = false;
 
     if (frameCount == 0) {
-        std::cout << "[Recorder] ⚠ No frames recorded. Deleting video & metadata files." << std::endl;
+        // std::cout << "[Recorder] ⚠ No frames recorded. Deleting video & metadata files." << std::endl;
         if (fs::exists(videoFileName)) fs::remove(videoFileName);
         if (fs::exists(metadataFileName)) fs::remove(metadataFileName);
         return;
     }
 
-    std::cout << "[Recorder] ✅ Video file saved: " << videoFileName << std::endl;
+    // std::cout << "[Recorder] ✅ Video file saved: " << videoFileName << std::endl;
     // checkVideoIntegrity();
 }
 
 void Recorder::checkVideoIntegrity() {
     if (!fs::exists(videoFileName)) {
-        std::cerr << "[Recorder] ❌ Error: Video file does not exist!" << std::endl;
+        // std::cerr << "[Recorder] ❌ Error: Video file does not exist!" << std::endl;
         return;
     }
 
