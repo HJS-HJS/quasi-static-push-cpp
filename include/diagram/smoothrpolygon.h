@@ -5,10 +5,6 @@
 #include <cmath>
 
 class SmoothRPolygon : public Diagram {
-private:
-    float a, b;
-    int k;
-
 public:
     SmoothRPolygon(float x, float y, float rotation, float a, int k);
     float funcRadius(float theta) const override;

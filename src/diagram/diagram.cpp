@@ -7,11 +7,11 @@
 #include <vector>
 #include <array>
 
-Diagram::Diagram() : q{0.0f, 0.0f, 0.0f}, radius(0), dt(0.1) {
+Diagram::Diagram() : q{0.0f, 0.0f, 0.0f}, radius(0), dt(0.1) ,shape_params{0.1}{
 }
 
 Diagram::Diagram(float x, float y, float rotation, float radius)
-    : q{x, y, rotation}, radius(radius), dt(0.1) {
+    : q{x, y, rotation}, radius(radius), dt(0.1), shape_params{radius} {
 }
 
 void Diagram::initialize() {

@@ -5,10 +5,6 @@
 #include <cmath>
 
 class SuperEllipse : public Diagram {
-private:
-    float a, b;
-    int n;
-
 public:
     SuperEllipse(float x, float y, float rotation, float a, float b, int n);
     float funcRadius(float theta) const override;

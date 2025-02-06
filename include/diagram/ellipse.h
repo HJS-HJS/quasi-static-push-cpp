@@ -5,9 +5,6 @@
 #include <cmath>
 
 class Ellipse : public Diagram {
-private:
-    float a, b;
-
 public:
     Ellipse(float x, float y, float rotation, float a, float b);
     float funcRadius(float theta) const override;

@@ -34,6 +34,7 @@ public:
     Eigen::Vector3f v = Eigen::Vector3f::Zero(); // Velocity
     float radius;
     float dt = 0.001;
+    std::vector<float> shape_params;
     Eigen::Matrix3f limit_constant;
 
     void initialize();
