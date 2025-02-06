@@ -374,7 +374,6 @@ private:
         return py::array(py_list); // Python의 np.array(list, dtype=object)와 유사
     }
 
-
     py::object getPusherState() {
         std::vector<float> linear_state = pushers.q;  // 예제 데이터
         return py::array_t<float>(
