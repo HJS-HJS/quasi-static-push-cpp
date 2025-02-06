@@ -154,7 +154,7 @@ public:
      * @return SimulationResult containing simulation status, rendered image, and state information.
      */
     SimulationResult run(const std::vector<float>& u_input) {
-        bool mode_change = simulate_(u_input);
+        simulate_(u_input);
         bool condition = isDishOut_(); 
         int  grasp = grasp_();
         renderViewer_();
@@ -358,11 +358,23 @@ private:
     } 
 
     py::object getSliderState() {
-        std::vector<float> linear_state = sliders.get_q();  // 예제 데이터
+        std::vector<std::vector<float>> linear_state = sliders.get_status();  // 2D vector
+
+        size_t rows = linear_state.size();
+        size_t cols = rows > 0 ? linear_state[0].size() : 0;
+
+        std::vector<float> flat_data;
+        flat_data.reserve(rows * cols);
+
+        for (const auto& row : linear_state) {
+            flat_data.insert(flat_data.end(), row.begin(), row.end());
+        }
+
         return py::array_t<float>(
-            {linear_state.size()},  // Shape (1D array)
-            {sizeof(float)},        // Strides
-            linear_state.data()     // Data pointer
+            {rows, cols},              // Shape (2D array)
+            {cols * sizeof(float),     // Strides: row stride
+            sizeof(float)},            // Strides: column stride
+            flat_data.data()           // Data pointer
         );
     }
 
@@ -410,11 +422,12 @@ private:
         if (channels == 4){
             // SDL_Surface의 픽셀 데이터를 OpenCV의 cv::Mat으로 복사
             cv::Mat mat(height, width, CV_8UC4, surface->pixels);
-            cv::cvtColor(mat, rgbImage, cv::COLOR_BGRA2BGR);
+            cv::cvtColor(mat, rgbImage, cv::COLOR_BGRA2RGB);
         }
         else{
             // SDL_Surface의 픽셀 데이터를 OpenCV의 cv::Mat으로 복사
-            rgbImage = cv::Mat(height, width, CV_8UC3, surface->pixels);
+            cv::Mat mat(height, width, CV_8UC3, surface->pixels);
+            cv::cvtColor(mat, rgbImage, cv::COLOR_BGRA2RGB);
         }
 
         return rgbImage;
