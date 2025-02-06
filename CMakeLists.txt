@@ -41,17 +41,23 @@ file(GLOB_RECURSE SOURCES ${SRC_DIR}/*.cpp)
 file(GLOB_RECURSE TEST_FILES ${TEST_DIR}/*.cpp)
 file(GLOB_RECURSE PYBINDINGS_SRC ${BINDINGS_DIR}/*.cpp)
 
+# 공통 라이브러리 빌드 (정적 라이브러리, -fPIC 적용)
+add_library(quasi_static_lib STATIC ${SOURCES})
+target_compile_options(quasi_static_lib PRIVATE -fPIC)
+target_link_libraries(quasi_static_lib PUBLIC SDL2::SDL2 ${SDL2_GFX_LIB} ${OpenCV_LIBS})
+
+
 # 함수: 테스트 실행 파일 빌드
 function(build_test name)
-    add_executable(${name} ${TEST_DIR}/${name}.cpp ${SOURCES})
-    target_link_libraries(${name} PRIVATE SDL2::SDL2 ${SDL2_GFX_LIB} ${OpenCV_LIBS})
+    add_executable(${name} ${TEST_DIR}/${name}.cpp)
+    target_link_libraries(${name} PRIVATE quasi_static_lib)
     set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_DIR})
 endfunction()
 
-# 함수: Python 바인딩 공유 라이브러리 빌드
+# Python 바인딩을 위한 공유 라이브러리 빌드
 function(build_shared_lib name)
-    add_library(${name} MODULE ${SOURCES} ${PYBINDINGS_SRC})
-    target_link_libraries(${name} PRIVATE SDL2::SDL2 ${SDL2_GFX_LIB} ${OpenCV_LIBS} ${Python3_LIBRARIES})
+    add_library(${name} MODULE ${PYBINDINGS_SRC})
+    target_link_libraries(${name} PRIVATE quasi_static_lib ${Python3_LIBRARIES})
     set(CMAKE_INSTALL_RPATH "\$ORIGIN/lib")
     set_target_properties(${name} PROPERTIES PREFIX "")
     set_target_properties(${name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${OUTPUT_DIR})
