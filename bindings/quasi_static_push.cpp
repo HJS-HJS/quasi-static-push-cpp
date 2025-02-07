@@ -61,7 +61,7 @@ class PySimulationViewer {
      * @param frame_rate Frame rate of the simulation.
      * @param frame_skip Number of frames to skip during simulation.
      * @param grid Enable or disable grid visualization.
-     * @param visualise Enable or disable rendering.
+     * @param headless Enable or disable rendering.
      * @param move_to_target Enable automatic movement to a target.
      * @param show_closest_point Highlight closest contact points in visualization.
      * @param recording_enabled Enable recording of simulation frames.
@@ -78,18 +78,17 @@ public:
         int frame_skip = 10,
         bool grid = true,
         float grid_space = 0.1f,
-        bool visualise = true,
+        bool headless = false,
         bool move_to_target = true,
-        bool show_closest_point = true,
+        bool show_closest_point = false,
         bool recording_enabled = false,
         std::string recording_path = "recordings"
-        ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, grid_space, visualise),
+        ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, grid_space, !headless),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
             table_limit(std::array<float, 2>{tableWidth/2, tableHeight/2}),
             frame_rate(frame_rate),
             frame_skip(frame_skip),
-            visualise(visualise), 
             show_closest_point(show_closest_point),
             move_to_target(move_to_target),
             recording_enabled(recording_enabled),
@@ -209,7 +208,6 @@ private:
     std::array<float, 2> table_limit;
     float frame_rate;
     int frame_skip;
-    bool visualise;
     bool show_closest_point;
     bool move_to_target;
     int mode;
@@ -548,12 +546,25 @@ PYBIND11_MODULE(quasi_static_push, m) {
         - Detection of simulation termination conditions.
         - Image rendering and state retrieval.
         - Support for recording simulation frames.
+        - Iterative playback of recorded videos with metadata.
+
+        Classes:
+        --------
+        - `SimulationViewer`: Core simulation environment.
+        - `Player`: Video player for replaying recorded simulations.
+        - `PyPlayerIterator`: Iterator for processing frames in Python.
+
+        Enumerations:
+        -------------
+        - `SimulationDoneReason`: Defines various simulation stopping conditions.
+
     )pbdoc";
 
     py::enum_<SimulationDoneReason>(m, "SimulationDoneReason", R"pbdoc(
         Enum representing the reasons why a simulation might end.
 
         Values:
+        -------
         - NONE (0): No termination condition met.
         - DONE_FALL_OUT (1): The object has fallen outside the table bounds.
         - DONE_GRASP_SUCCESS (2): Successful grasp detected.
@@ -600,8 +611,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
         - frame_rate (float, default=100.0): Frame rate of the simulation (Hz).
         - frame_skip (int, default=10): Number of frames to skip during simulation.
         - grid (bool, default=True): Enable or disable grid visualization.
-        - grid_space (flaot, default=0.1): Space of grid (m).
-        - visualise (bool, default=True): Enable or disable rendering.
+        - grid_space (float, default=0.1): Grid spacing in meters.
+        - headless (bool, default=False): Enable or disable rendering.
         - move_to_target (bool, default=True): Enable automatic movement to a target.
         - show_closest_point (bool, default=True): Highlight closest contact points in visualization.
         - recording_enabled (bool, default=False): Enable recording of simulation frames.
@@ -647,12 +658,11 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("frame_skip") = 10,
              py::arg("grid") = true,
              py::arg("grid_space") = 0.1f,
-             py::arg("visualise") = true,
+             py::arg("headless") = false,
              py::arg("move_to_target") = true,
              py::arg("show_closest_point") = true,
              py::arg("recording_enabled") = false,
              py::arg("recording_path") = "recordings")
-
         .def("reset", py::overload_cast<
                 std::vector<std::tuple<std::string, std::vector<float>>>,
                 std::tuple<int, float, std::string, std::map<std::string, float>, float, float, float, float, float, float>,
@@ -672,45 +682,47 @@ PYBIND11_MODULE(quasi_static_push, m) {
                 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f
             },
             py::arg("newtableWidth") = 2.0f,
-            py::arg("newtableHeight") = 2.0f,
-            R"pbdoc(
-                Reset the simulation with custom parameters.
+            py::arg("newtableHeight") = 2.0f)
+        .def("run", &PySimulationViewer::run)
+        .def("keyboard_input", &PySimulationViewer::keyboard_input);
 
-                Parameters:
-                - slider_inputs (List[Tuple[str, List[float]]]): List of sliders with their types and parameters.
-                - pusher_input (Tuple[int, float, str, Dict[str, float], float, float, float, float, float, float]): 
-                  Configuration of the pusher.
-                - newtableWidth (float): New table width in meters.
-                - newtableHeight (float): New table height in meters.
-            )pbdoc")
+    py::class_<Player>(m, "Player", R"pbdoc(
+        Player class for replaying recorded videos.
 
-        .def("run", &PySimulationViewer::run, R"pbdoc(
-            Run the simulation for one step.
+        This class loads videos and their corresponding metadata from a directory.
+        It provides an iterator for retrieving frames and metadata one by one.
 
-            Parameters:
-            - u_input (List[float]): Input control vector for the simulation step.
+        Parameters:
+        -----------
+        - directory (str, default="recordings"): Path to the directory containing video recordings.
 
-            Returns:
-            - SimulationResult: A structure containing simulation status, rendered image, and object states.
-        )pbdoc")
+        Methods:
+        --------
+        __iter__()
+            Returns an iterator over the frames in the loaded videos.
 
-        .def("keyboard_input", &PySimulationViewer::keyboard_input, R"pbdoc(
-            Get keyboard input from the simulation window.
+        Example:
+        --------
+        ```python
+        player = Player("recordings")
+        for frame, metadata in player:
+            cv2.imshow("Replay", frame)
+            if cv2.waitKey(30) == 27:  # ESC to exit
+                break
+        ```
+    )pbdoc")
+        .def(py::init<std::string>(), py::arg("directory") = "recordings")
+        .def("__iter__", [](Player& self) { return PyPlayerIterator(self); });
 
-            Returns:
-            - Tuple[np.ndarray, bool, bool]: 
-              - First element: An array of floats representing input directions.
-              - Second element: Boolean indicating whether any key was pressed.
-              - Third element: Boolean indicating whether input changed since the last call.
-        )pbdoc")
-        .def("__del__", [](PySimulationViewer* self) {
-            delete self;
-        });
-        py::class_<Player>(m, "Player")
-            .def(py::init<std::string>(), py::arg("directory") = "recordings")
-            .def("__iter__", [](Player& self) { return PyPlayerIterator(self); });
+    py::class_<PyPlayerIterator>(m, "PyPlayerIterator", R"pbdoc(
+        Iterator for processing frames from Player.
 
-        py::class_<PyPlayerIterator>(m, "PyPlayerIterator")
-            .def("__iter__", [](PyPlayerIterator& self) -> PyPlayerIterator& { return self; })
-            .def("__next__", &PyPlayerIterator::next);
+        Methods:
+        --------
+        __next__()
+            Retrieves the next frame and its corresponding metadata.
+            Raises `StopIteration` when all frames are exhausted.
+    )pbdoc")
+        .def("__iter__", [](PyPlayerIterator& self) -> PyPlayerIterator& { return self; })
+        .def("__next__", &PyPlayerIterator::next);
 }
