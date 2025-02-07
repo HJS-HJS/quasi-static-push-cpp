@@ -12,6 +12,7 @@ from quasi_static_push import SimulationViewer, Player
 player = Player("recordings")
 for frame, metadata in player:
     cv2.imshow("Replay", frame)
+    time.sleep(1/30)
     if cv2.waitKey(30) == 27:  # ESC 키로 종료
         break
 cv2.destroyAllWindows()
