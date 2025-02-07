@@ -484,11 +484,10 @@ class PyPlayerIterator {
 public:
     PyPlayerIterator(Player& player) : player(player), iter(player.begin()), end_iter(player.end()) {}
 
-    std::tuple<SimulationResult, std::vector<float>> next() {
+    std::tuple<bool, SimulationResult, std::vector<float>> next() {
         if (iter == end_iter) throw py::stop_iteration();
 
         auto [frame, metadata] = *iter;
-        ++iter;
 
         if (frame.empty()) throw py::stop_iteration();  // ✅ 영상이 끝나면 정상 종료
 
@@ -499,6 +498,7 @@ public:
         py::array_t<uint8_t> numpy_frame(shape, strides, frame.data);
 
         // ✅ Metadata에서 Simulation 상태 정보 가져오기
+        bool new_video = metadata.contains("frame") ? !metadata["frame"].get<int>() : DONE_NONE;
         int done = metadata.contains("done") ? metadata["done"].get<int>() : DONE_NONE;
         std::vector<std::string> reasons;
         if (metadata.contains("reasons") && metadata["reasons"].is_array()) {
@@ -553,7 +553,7 @@ public:
         };
 
         // ✅ SimulationResult와 action을 함께 반환
-        return std::make_tuple(result, action);
+        return std::make_tuple(new_video, result, action);
     }
 
 
@@ -786,7 +786,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
 
             Returns:
             --------
-            Tuple[SimulationResult, List[float]]:
+            Tuple[bool, SimulationResult, List[float]]:
+                - `is_new_video`: Return true on the very first frame of the video.
                 - `SimulationResult`: Contains simulation state information.
                 - `action` (List[float]): Control inputs applied in the simulation step.
 
