@@ -4,6 +4,7 @@
 
 #include "utils/viewer.h"
 #include "utils/recorder.h"
+#include "utils/player.h"
 #include "simulation/quasi_state_sim.h"
 #include "simulation/object_slider.h"
 #include "simulation/object_pusher.h"
@@ -76,12 +77,13 @@ public:
         float frame_rate = 100,
         int frame_skip = 10,
         bool grid = true,
+        float grid_space = 0.1f,
         bool visualise = true,
         bool move_to_target = true,
         bool show_closest_point = true,
         bool recording_enabled = false,
         std::string recording_path = "recordings"
-        ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, visualise),
+        ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, grid_space, visualise),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
             table_limit(std::array<float, 2>{tableWidth/2, tableHeight/2}),
@@ -92,8 +94,6 @@ public:
             move_to_target(move_to_target),
             recording_enabled(recording_enabled),
             recording_path(recording_path) {
-        viewer.setGridSpacing(0.1f);
-        // reset();
         if (recording_enabled) {
             recorder = std::make_unique<Recorder>(recording_path, 1.0 / frame_rate * frame_skip, window_width, window_height);
         }
@@ -231,6 +231,7 @@ private:
             return -1;
         }
     }
+
     bool simulate_(const std::vector<float>& u_input) {
         if (!sim) {
             throw std::runtime_error("Simulation not initialized. Call reset() first.");
@@ -474,6 +475,65 @@ private:
 
 };
 
+class PyPlayerIterator {
+public:
+    PyPlayerIterator(Player& player) : player(player), iter(player.begin()), end_iter(player.end()) {}
+
+    std::pair<py::array_t<uint8_t>, py::dict> next() {
+        if (iter == end_iter) throw py::stop_iteration();
+
+        auto [frame, metadata] = *iter;
+        ++iter;
+
+        if (frame.empty()) throw py::stop_iteration();  // ✅ 영상이 끝나면 정상 종료
+
+        // ✅ OpenCV Mat → NumPy 변환
+        std::vector<py::ssize_t> shape = {frame.rows, frame.cols, frame.channels()};
+        std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(frame.step[0]), static_cast<py::ssize_t>(frame.elemSize()), 1};
+
+        py::array_t<uint8_t> numpy_frame(
+            shape,      // shape 정보 전달 (H, W, C)
+            strides,    // strides 정보 전달 (row stride, column stride, element stride)
+            frame.data  // 데이터 포인터
+        );
+
+        py::dict py_metadata = jsonToPyDict(metadata);
+        return std::make_pair(numpy_frame, py_metadata);
+    }
+
+private:
+    Player& player;
+    Player::Iterator iter, end_iter;
+
+    py::object jsonToPyDict(const json& j) {
+        if (j.is_object()) {
+            py::dict pyDict;
+            for (auto it = j.begin(); it != j.end(); ++it) {
+                pyDict[py::str(it.key())] = jsonToPyDict(it.value());
+            }
+            return pyDict;
+        } else if (j.is_array()) {
+            py::list pyList;
+            for (const auto& element : j) {
+                pyList.append(jsonToPyDict(element));
+            }
+            return pyList;
+        } else if (j.is_string()) {
+            return py::str(j.get<std::string>());
+        } else if (j.is_boolean()) {
+            return py::bool_(j.get<bool>());
+        } else if (j.is_number_integer()) {
+            return py::int_(j.get<int>());
+        } else if (j.is_number_unsigned()) {
+            return py::int_(j.get<unsigned int>());
+        } else if (j.is_number_float()) {
+            return py::float_(j.get<double>());
+        } else {
+            return py::none();
+        }
+    }
+};
+
 PYBIND11_MODULE(quasi_static_push, m) {
     m.doc() = R"pbdoc(
         Quasi-static push simulation module using pybind11.
@@ -540,6 +600,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
         - frame_rate (float, default=100.0): Frame rate of the simulation (Hz).
         - frame_skip (int, default=10): Number of frames to skip during simulation.
         - grid (bool, default=True): Enable or disable grid visualization.
+        - grid_space (flaot, default=0.1): Space of grid (m).
         - visualise (bool, default=True): Enable or disable rendering.
         - move_to_target (bool, default=True): Enable automatic movement to a target.
         - show_closest_point (bool, default=True): Highlight closest contact points in visualization.
@@ -576,7 +637,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
               - Second element: Boolean indicating whether any key was pressed.
               - Third element: Boolean indicating whether input changed since the last call.
     )pbdoc")
-        .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, bool, std::string>(),
+        .def(py::init<int, int, float, float, float, float, int, bool, float, bool, bool, bool, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
@@ -585,6 +646,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("frame_rate") = 100.0f,
              py::arg("frame_skip") = 10,
              py::arg("grid") = true,
+             py::arg("grid_space") = 0.1f,
              py::arg("visualise") = true,
              py::arg("move_to_target") = true,
              py::arg("show_closest_point") = true,
@@ -644,4 +706,11 @@ PYBIND11_MODULE(quasi_static_push, m) {
         .def("__del__", [](PySimulationViewer* self) {
             delete self;
         });
+        py::class_<Player>(m, "Player")
+            .def(py::init<std::string>(), py::arg("directory") = "recordings")
+            .def("__iter__", [](Player& self) { return PyPlayerIterator(self); });
+
+        py::class_<PyPlayerIterator>(m, "PyPlayerIterator")
+            .def("__iter__", [](PyPlayerIterator& self) -> PyPlayerIterator& { return self; })
+            .def("__next__", &PyPlayerIterator::next);
 }
