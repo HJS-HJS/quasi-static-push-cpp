@@ -2,20 +2,37 @@ import sys
 import os
 import time
 import numpy as np
+import cv2
+
 so_file_path = os.path.abspath("build/build")
 sys.path.append(so_file_path)
 
-import quasi_static_push
+from quasi_static_push import SimulationViewer, Player
+
+player = Player("recordings")
+for frame, metadata in player:
+    cv2.imshow("Replay", frame)
+    if cv2.waitKey(30) == 27:  # ESC 키로 종료
+        break
+cv2.destroyAllWindows()
+del player
 
 # Python에서 SimulationViewer 객체 생성
-viewer = quasi_static_push.SimulationViewer(
-    # table_size_x = 1.5,
-    # table_size_y = 1.0,
-    visualise = False,
-    frame_skip = 8,
-    recording_enabled = True,
-    show_closest_point = False,
-    # show_closest_point = True,
+viewer = SimulationViewer(
+    # window_width        = 1600,
+    # window_height       = 1600,
+    # scale               = 400.0,
+    # tableWidth          = 0.5,
+    # tableHeight         = 1.0,
+    # frame_rate          = 100,
+    # frame_skip          = 8,
+    grid                = False,
+    grid_space          = 0.5,
+    headless            = False,
+    move_to_target      = True,
+    show_closest_point  = False,
+    recording_enabled   = True,
+    recording_path      = "recordings",
     )
 
 # 시뮬레이션 초기화
