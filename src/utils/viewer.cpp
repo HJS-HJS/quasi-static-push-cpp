@@ -4,9 +4,9 @@
 #include <algorithm>
 #include <cmath>
 
-SimulationViewer::SimulationViewer(int width, int height, float unit, float tableWidth, float tableHeight, bool showGrid, bool displayWindow, float gridSpacingMeters)
-    : screenWidth(width), screenHeight(height), unit(unit), showGrid(showGrid), displayWindow(displayWindow),
-      gridSpacingMeters(gridSpacingMeters), tableWidth((int)(tableWidth * unit)), tableHeight((int)(tableHeight * unit)),
+SimulationViewer::SimulationViewer(int width, int height, float unit, float tableWidth, float tableHeight, bool showGrid, float gridSpacingMeters, bool displayWindow)
+    : screenWidth(width), screenHeight(height), unit(unit), showGrid(showGrid), gridSpacingMeters(gridSpacingMeters),
+      displayWindow(displayWindow), tableWidth((int)(tableWidth * unit)), tableHeight((int)(tableHeight * unit)),
       window(nullptr), renderer(nullptr) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         throw std::runtime_error("Failed to initialize SDL: " + std::string(SDL_GetError()));
@@ -306,4 +306,34 @@ SDL_Surface* SimulationViewer::getRenderedImage() {
     SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, screenWidth, screenHeight, 32, SDL_PIXELFORMAT_RGBA32);
     SDL_RenderReadPixels(renderer, nullptr, SDL_PIXELFORMAT_RGBA32, surface->pixels, surface->pitch);
     return surface;
+}
+
+std::tuple<std::array<float, 5>, bool, bool> SimulationViewer::getKeyboardInput(){
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_KEYDOWN) {
+            keyStates[event.key.keysym.sym] = true;
+        }
+        if (event.type == SDL_KEYUP) {
+            keyStates[event.key.keysym.sym] = false;
+        }
+    }
+
+    SDL_Delay(16);
+
+    std::array<float, 5> output = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    if      (keyStates[SDLK_w]) output[0] = 1.0f;
+    else if (keyStates[SDLK_s]) output[0] = -1.0f;
+    if      (keyStates[SDLK_a]) output[1] = 1.0f;
+    else if (keyStates[SDLK_d]) output[1] = -1.0f;
+    if      (keyStates[SDLK_q]) output[2] = 1.0f;
+    else if (keyStates[SDLK_e]) output[2] = -1.0f;
+    if      (keyStates[SDLK_LEFT]) output[3] = -1.0f;
+    else if (keyStates[SDLK_RIGHT]) output[3] = 1.0f;
+    if      (keyStates[SDLK_SPACE]) output[4] = 1.0f;
+
+
+
+    return std::make_tuple(output, keyStates[SDLK_ESCAPE], keyStates[SDLK_r]);
 }

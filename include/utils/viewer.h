@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <bitset>
 
 class SimulationViewer {
 private:
@@ -15,8 +16,8 @@ private:
     int screenHeight;
     float unit; // meters per pixel
     bool showGrid;
-    bool displayWindow;
     float gridSpacingMeters; // Moved above
+    bool displayWindow;
     int tableWidth;
     int tableHeight;
     SDL_Window* window; // Moved below
@@ -34,6 +35,7 @@ private:
         {"black", {0, 0, 0, 255}},
         {"pink", {255, 194, 205, 255}}
     };
+    std::bitset<256> keyStates;
 
     void drawGrid() const;
     void drawBackground() const;
@@ -43,7 +45,7 @@ private:
     void drawArrows(const std::vector<std::tuple<float, float, float, float>>& arrows, const std::string& colorName = "blue", int thickness = 5) const;
 
 public:
-    SimulationViewer(int width, int height, float unit, float tableWidth, float tableHeight, bool showGrid = true, bool displayWindow = true, float gridSpacingMeters = 1.0f);
+    SimulationViewer(int width, int height, float unit, float tableWidth, float tableHeight, bool showGrid = true, float gridSpacingMeters = 1.0f, bool displayWindow = true);
     ~SimulationViewer();
 
     void setGridVisibility(bool visibility);
@@ -61,6 +63,7 @@ public:
     void render(const std::vector<std::vector<float>>& points = {}, 
                 const std::vector<std::tuple<float, float, float, float>>& arrows = {});
     SDL_Surface* getRenderedImage();
+    std::tuple<std::array<float, 5>, bool, bool> getKeyboardInput();
 };
 
 #endif // SIMULATION_VIEWER_H
