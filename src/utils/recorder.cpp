@@ -55,8 +55,13 @@ void Recorder::startRecording() {
     // std::cout << "[Recorder] 🎥 Recording started: " << videoFileName << std::endl;
 }
 
-void Recorder::saveFrame(const cv::Mat& frame, const std::vector<float>& pusher, 
-                         const std::vector<std::vector<float>>& sliders, const std::vector<float>& action) {
+void Recorder::saveFrame(const cv::Mat& frame, 
+                         const int done, 
+                         const std::vector<std::string> reasons, 
+                         const int mode,
+                         const std::vector<float>& pusher, 
+                         const std::vector<std::vector<float>>& sliders,
+                         const std::vector<float>& action) {
     if (!recording || !videoWriter.isOpened()) return;
 
     if (frame.empty()) {
@@ -70,17 +75,25 @@ void Recorder::saveFrame(const cv::Mat& frame, const std::vector<float>& pusher,
         metadataFile << ",\n";
     }
 
-    saveMetadata(frameCount, pusher, sliders, action);
+    saveMetadata(frameCount, done, reasons, mode, pusher, sliders, action);
     frameCount++;
 
     // std::cout << "[Recorder] 📸 Frame " << frameCount << " saved." << std::endl;
 }
 
-void Recorder::saveMetadata(int frameIndex, const std::vector<float>& pusher, 
-                            const std::vector<std::vector<float>>& sliders, const std::vector<float>& action) {
+void Recorder::saveMetadata(int frameIndex, 
+                            const int done, 
+                            const std::vector<std::string> reasons, 
+                            const int mode,
+                            const std::vector<float>& pusher, 
+                            const std::vector<std::vector<float>>& sliders,
+                            const std::vector<float>& action) {
     json jsonData;
     jsonData["frame"] = frameIndex;
     jsonData["time"] = frameIndex * frameTimeSec;
+    jsonData["done"] = done;
+    jsonData["reasons"] = reasons;
+    jsonData["mode"] = mode;
     jsonData["pusher"] = pusher;
     jsonData["sliders"] = sliders;
     jsonData["action"] = action;

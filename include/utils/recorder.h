@@ -22,6 +22,14 @@ public:
     void startRecording();
     void saveFrame(const cv::Mat& frame, const std::vector<float>& pusher, 
                    const std::vector<std::vector<float>>& sliders, const std::vector<float>& action);
+    void saveFrame(const cv::Mat& frame, 
+                   const int done, 
+                   const std::vector<std::string> reasons, 
+                   const int mode,
+                   const std::vector<float>& pusher, 
+                   const std::vector<std::vector<float>>& sliders,
+                   const std::vector<float>& action
+                   );
     void stopRecording();
 
 private:
@@ -40,8 +48,14 @@ private:
     void ensureDirectoryExists();
     std::string generateVideoFileName();
     std::string getVideoFileName();
-    void saveMetadata(int frameIndex, const std::vector<float>& pusher, 
-                      const std::vector<std::vector<float>>& sliders, const std::vector<float>& action);
+    void saveMetadata(int frameIndex, 
+                      const int done, 
+                      const std::vector<std::string> reasons, 
+                      const int mode,
+                      const std::vector<float>& pusher, 
+                      const std::vector<std::vector<float>>& sliders,
+                      const std::vector<float>& action
+                      );
     void checkVideoIntegrity();
 };
 
