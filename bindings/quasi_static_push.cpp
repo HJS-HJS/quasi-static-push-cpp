@@ -95,6 +95,7 @@ public:
             recording_path(recording_path) {
         if (recording_enabled) {
             recorder = std::make_unique<Recorder>(recording_path, 1.0 / frame_rate * frame_skip, window_width, window_height);
+            startRecording();
         }
     }
 
@@ -358,13 +359,22 @@ private:
 
     py::object getImageState() {
         auto surface = viewer.getRenderedImage();
+        if (!surface) {
+            throw std::runtime_error("Failed to get rendered image!");
+        }
+
+        // SDL_Surface → cv::Mat (4채널 RGBA 또는 BGRA)
+        cv::Mat frame = SDL_SurfaceToMat(surface);
+
+        std::vector<py::ssize_t> shape = {frame.rows, frame.cols, frame.channels()};
+        std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(frame.step[0]), static_cast<py::ssize_t>(frame.elemSize()), 1};
+
         return py::array_t<uint8_t>(
-            {surface->h, surface->w, 4}, 
-            {surface->pitch, 4, 1},
-            static_cast<uint8_t*>(surface->pixels), 
-            py::capsule(surface, [](void *p) { SDL_FreeSurface(static_cast<SDL_Surface*>(p)); })
+            shape,      // shape 정보 전달 (H, W, C)
+            strides,    // strides 정보 전달 (row stride, column stride, element stride)
+            frame.data  // 데이터 포인터
         );
-    } 
+    }
 
     py::object getSliderState() {
         std::vector<std::vector<float>> linear_state = sliders.get_status();
@@ -584,7 +594,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
         - done (int): Bitwise OR of `SimulationDoneReason` values.
         - reasons (List[str]): List of reasons why the simulation ended.
         - mode (int): Current simulation mode.
-        - image_state (numpy.ndarray): Rendered image of the simulation (H, W, 4 format).
+        - image_state (numpy.ndarray): Rendered image of the simulation (H, W, 3 format).
         - pusher_state (numpy.ndarray): State of the pusher object.
         - slider_state (numpy.ndarray): State of the slider object.
     )pbdoc")
