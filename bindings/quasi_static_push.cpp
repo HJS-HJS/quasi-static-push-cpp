@@ -103,7 +103,6 @@ public:
         if (recording_enabled && recorder) {
             recorder->stopRecording();
         }
-        viewer.~SimulationViewer();
     }
 
     // Reset the simulation with default parameters
@@ -641,5 +640,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
               - First element: An array of floats representing input directions.
               - Second element: Boolean indicating whether any key was pressed.
               - Third element: Boolean indicating whether input changed since the last call.
-        )pbdoc");
+        )pbdoc")
+        .def("__del__", [](PySimulationViewer* self) {
+            delete self;
+        });
 }
