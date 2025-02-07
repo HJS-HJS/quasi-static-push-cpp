@@ -103,6 +103,7 @@ public:
         if (recording_enabled && recorder) {
             recorder->stopRecording();
         }
+        viewer.~SimulationViewer();
     }
 
     // Reset the simulation with default parameters
@@ -193,6 +194,10 @@ public:
             getPusherState(),
             getSliderState()
         };
+    }
+
+    std::tuple<std::array<float, 5>, bool, bool> keyboard_input(){
+        return viewer.getKeyboardInput();
     }
 
 private:
@@ -368,10 +373,13 @@ private:
 
         py::list py_list;
         for (const auto& row : linear_state) {
-            py_list.append(py::array_t<float>(row.size(), row.data())); // 각 행을 개별 NumPy 배열로 변환
+            py::list py_row;
+            for (float val : row) {
+                py_row.append(val);
+            }
+            py_list.append(py_row);
         }
-
-        return py::array(py_list); // Python의 np.array(list, dtype=object)와 유사
+        return py_list;  // Python 리스트로 반환
     }
 
     py::object getPusherState() {
@@ -468,63 +476,107 @@ private:
 };
 
 PYBIND11_MODULE(quasi_static_push, m) {
-    m.doc() = "Quasi-static push simulation module";
-    py::enum_<SimulationDoneReason>(m, "SimulationDoneReason")
+    m.doc() = R"pbdoc(
+        Quasi-static push simulation module using pybind11.
+
+        This module provides an interface to simulate object pushing and grasping.
+        It integrates a physics-based simulation with a visualization engine, allowing
+        users to control pushers, sliders, and obstacles in a 2D environment.
+
+        Features:
+        ----------
+        - Object pushing and grasping simulation.
+        - Detection of simulation termination conditions.
+        - Image rendering and state retrieval.
+        - Support for recording simulation frames.
+    )pbdoc";
+
+    py::enum_<SimulationDoneReason>(m, "SimulationDoneReason", R"pbdoc(
+        Enum representing the reasons why a simulation might end.
+
+        Values:
+        - NONE (0): No termination condition met.
+        - DONE_FALL_OUT (1): The object has fallen outside the table bounds.
+        - DONE_GRASP_SUCCESS (2): Successful grasp detected.
+        - DONE_GRASP_FAILED (4): Grasp failed due to insufficient grip.
+    )pbdoc")
         .value("NONE", DONE_NONE)
         .value("DONE_FALL_OUT", DONE_FALL_OUT)
         .value("DONE_GRASP_SUCCESS", DONE_GRASP_SUCCESS)
         .value("DONE_GRASP_FAILED", DONE_GRASP_FAILED)
         .export_values();
-    py::class_<SimulationResult>(m, "SimulationResult")
+
+    py::class_<SimulationResult>(m, "SimulationResult", R"pbdoc(
+        Structure to store the simulation results.
+
+        Attributes:
+        -----------
+        - done (int): Bitwise OR of `SimulationDoneReason` values.
+        - reasons (List[str]): List of reasons why the simulation ended.
+        - mode (int): Current simulation mode.
+        - image_state (numpy.ndarray): Rendered image of the simulation (H, W, 4 format).
+        - pusher_state (numpy.ndarray): State of the pusher object.
+        - slider_state (numpy.ndarray): State of the slider object.
+    )pbdoc")
         .def_readonly("done", &SimulationResult::done)
         .def_readonly("reasons", &SimulationResult::reasons)
         .def_readonly("mode", &SimulationResult::mode)
         .def_readonly("image_state", &SimulationResult::image_state)
         .def_readonly("pusher_state", &SimulationResult::pusher_state)
         .def_readonly("slider_state", &SimulationResult::slider_state);
-    py::class_<PySimulationViewer>(m, "SimulationViewer",
-        R"pbdoc(
-            SimulationViewer for quasi-static push simulation.
+
+    py::class_<PySimulationViewer>(m, "SimulationViewer", R"pbdoc(
+        Simulation viewer for quasi-static push simulation.
+
+        This class integrates visualization, physics-based simulation, and user interaction.
+        It manages objects such as pushers, sliders, and obstacles, tracking simulation progress.
+
+        Parameters:
+        -----------
+        - window_width (int, default=1600): Width of the simulation window in pixels.
+        - window_height (int, default=1600): Height of the simulation window in pixels.
+        - scale (float, default=400.0): Scale factor for visualization.
+        - tableWidth (float, default=2.0): Width of the simulation table in meters.
+        - tableHeight (float, default=2.0): Height of the simulation table in meters.
+        - frame_rate (float, default=100.0): Frame rate of the simulation (Hz).
+        - frame_skip (int, default=10): Number of frames to skip during simulation.
+        - grid (bool, default=True): Enable or disable grid visualization.
+        - visualise (bool, default=True): Enable or disable rendering.
+        - move_to_target (bool, default=True): Enable automatic movement to a target.
+        - show_closest_point (bool, default=True): Highlight closest contact points in visualization.
+        - recording_enabled (bool, default=False): Enable recording of simulation frames.
+        - recording_path (str, default="recordings"): Path to save recorded frames.
+
+        Methods:
+        --------
+        reset(slider_inputs, pusher_input, newtableWidth, newtableHeight)
+            Reset the simulation with new parameters.
 
             Parameters:
-            - window_width (int): Width of the simulation window (default: 1600).
-            - window_height (int): Height of the simulation window (default: 1600).
-            - scale (float): Scale factor for visualization (default: 400.0).
-            - tableWidth (float): Table width in meters (default: 2.0).
-            - tableHeight (float): Table height in meters (default: 2.0).
-            - frame_rate (float): frame rate of the simulation [hz] (default: 100.0).
-            - frame_skip (float): continous frame of the simulation [frame] (default: 10.0).
-            - grid (bool): Show grid in visualization (default: True).
-            - visualise (bool): Enable visualization (default: True).
-            - move_to_target (bool): Move to target position (default: True).
-            - show_closest_point (bool): Highlight closest points in visualization (default: True).
-            
-            Methods:
-            --------
-            reset()
-                Reset the simulation to the initial state.
+            - slider_inputs (List[Tuple[str, List[float]]]): List of sliders with their types and parameters.
+            - pusher_input (Tuple[int, float, str, Dict[str, float], float, float, float, float, float, float]): 
+              Configuration of the pusher.
+            - newtableWidth (float): New table width in meters.
+            - newtableHeight (float): New table height in meters.
 
-            reset(slider_inputs, pusher_input, newtableWidth, newtableHeight)
-                Reset the simulation with custom parameters.
+        run(u_input: List[float]) -> SimulationResult
+            Run the simulation for one step.
 
-                Parameters:
-                - slider_inputs (List[Tuple[str, List[float]]]): List of sliders with their types and parameters.
-                - pusher_input (Tuple[int, float, str, Dict[str, float], float, float, float, float, float, float]): 
-                Configuration of the pusher.
-                - newtableWidth (float): New table width.
-                - newtableHeight (float): New table height.
+            Parameters:
+            - u_input (List[float]): Input control vector for the simulation step.
 
-            run(u_input: List[float]) -> Tuple[bool, Union[numpy.ndarray, List[float]]]
-                Run the simulation and return a tuple `(bool, state)`.
+            Returns:
+            - SimulationResult: A structure containing simulation status, rendered image, and object states.
 
-                - The first element (bool) indicates whether a mode change success.
-                - The second element (bool) indicates whether a dish is safe.
-                - The third element (H, W, 4) color image.
-                - The forth element (int) pusher mode.
-                - The fifth element 1D NumPy array of floats about pusher.
-                - The sixth element 1D NumPy array of floats about sliser.
+        keyboard_input() -> Tuple[np.ndarray, bool, bool]
+            Get keyboard input from the simulation window.
 
-        )pbdoc")
+            Returns:
+            - Tuple[np.ndarray, bool, bool]: 
+              - First element: An array of floats representing input directions.
+              - Second element: Boolean indicating whether any key was pressed.
+              - Third element: Boolean indicating whether input changed since the last call.
+    )pbdoc")
         .def(py::init<int, int, float, float, float, float, int, bool, bool, bool, bool, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
@@ -559,14 +611,35 @@ PYBIND11_MODULE(quasi_static_push, m) {
                 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f
             },
             py::arg("newtableWidth") = 2.0f,
-            py::arg("newtableHeight") = 2.0f
-        )
-        .def("run", &PySimulationViewer::run, R"pbdoc(
-            Run the simulation and return a tuple (bool, state).
+            py::arg("newtableHeight") = 2.0f,
+            R"pbdoc(
+                Reset the simulation with custom parameters.
 
-            - The first element (bool) indicates a certain condition (e.g., if an object is out of bounds).
-            - The second element (state) depends on the `state` type:
-                - "Image": (H, W, 4) RGBA NumPy array.
-                - "Linear": NumPy array of floats.
+                Parameters:
+                - slider_inputs (List[Tuple[str, List[float]]]): List of sliders with their types and parameters.
+                - pusher_input (Tuple[int, float, str, Dict[str, float], float, float, float, float, float, float]): 
+                  Configuration of the pusher.
+                - newtableWidth (float): New table width in meters.
+                - newtableHeight (float): New table height in meters.
+            )pbdoc")
+
+        .def("run", &PySimulationViewer::run, R"pbdoc(
+            Run the simulation for one step.
+
+            Parameters:
+            - u_input (List[float]): Input control vector for the simulation step.
+
+            Returns:
+            - SimulationResult: A structure containing simulation status, rendered image, and object states.
+        )pbdoc")
+
+        .def("keyboard_input", &PySimulationViewer::keyboard_input, R"pbdoc(
+            Get keyboard input from the simulation window.
+
+            Returns:
+            - Tuple[np.ndarray, bool, bool]: 
+              - First element: An array of floats representing input directions.
+              - Second element: Boolean indicating whether any key was pressed.
+              - Third element: Boolean indicating whether input changed since the last call.
         )pbdoc");
 }
