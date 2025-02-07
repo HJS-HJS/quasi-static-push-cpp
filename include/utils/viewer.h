@@ -35,7 +35,7 @@ private:
         {"black", {0, 0, 0, 255}},
         {"pink", {255, 194, 205, 255}}
     };
-    std::bitset<256> keyStates;
+    std::unordered_map<SDL_Keycode, bool> keyStates;
 
     void drawGrid() const;
     void drawBackground() const;
