@@ -182,7 +182,7 @@ public:
 
         // Record image and data
         if (recording_enabled && recorder) {
-            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), pushers.q, sliders.get_status(), u_input);
+            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), done, reasons, mode, pushers.q, sliders.get_status(), u_input);
         }
         
         return {
@@ -190,13 +190,33 @@ public:
             reasons,
             mode,
             getImageState(),
-            getPusherState(),
-            getSliderState()
+            getPusherState(pushers.q),
+            getSliderState(sliders.get_status())
         };
     }
 
     std::tuple<std::array<float, 5>, bool, bool> keyboard_input(){
         return viewer.getKeyboardInput();
+    }
+
+    static py::object getPusherState(const std::vector<float>& linear_state) {
+        return py::array_t<float>(
+            {linear_state.size()},  // Shape (1D array)
+            {sizeof(float)},        // Strides
+            linear_state.data()     // Data pointer
+        );
+    }
+
+    static py::object getSliderState(const std::vector<std::vector<float>>& linear_state) {
+        py::list py_list;
+        for (const auto& row : linear_state) {
+            py::list py_row;
+            for (float val : row) {
+                py_row.append(val);
+            }
+            py_list.append(py_row);
+        }
+        return py_list;  // Python 리스트로 반환
     }
 
 private:
@@ -376,29 +396,6 @@ private:
         );
     }
 
-    py::object getSliderState() {
-        std::vector<std::vector<float>> linear_state = sliders.get_status();
-
-        py::list py_list;
-        for (const auto& row : linear_state) {
-            py::list py_row;
-            for (float val : row) {
-                py_row.append(val);
-            }
-            py_list.append(py_row);
-        }
-        return py_list;  // Python 리스트로 반환
-    }
-
-    py::object getPusherState() {
-        std::vector<float> linear_state = pushers.q;  // 예제 데이터
-        return py::array_t<float>(
-            {linear_state.size()},  // Shape (1D array)
-            {sizeof(float)},        // Strides
-            linear_state.data()     // Data pointer
-        );
-    }
-
     void addSlider_(std::string type, std::vector<float> param) {
         if (type == "circle") sliders.add(std::make_unique<Circle>(param[0], param[1], param[2], param[3]));
         else if (type == "ellipse") sliders.add(std::make_unique<Ellipse>(param[0], param[1], param[2], param[3], param[4]));
@@ -487,7 +484,7 @@ class PyPlayerIterator {
 public:
     PyPlayerIterator(Player& player) : player(player), iter(player.begin()), end_iter(player.end()) {}
 
-    std::pair<py::array_t<uint8_t>, py::dict> next() {
+    std::tuple<SimulationResult, std::vector<float>> next() {
         if (iter == end_iter) throw py::stop_iteration();
 
         auto [frame, metadata] = *iter;
@@ -495,19 +492,71 @@ public:
 
         if (frame.empty()) throw py::stop_iteration();  // ✅ 영상이 끝나면 정상 종료
 
-        // ✅ OpenCV Mat → NumPy 변환
+        // ✅ OpenCV Mat → NumPy 변환 (RGB 형식)
         std::vector<py::ssize_t> shape = {frame.rows, frame.cols, frame.channels()};
         std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(frame.step[0]), static_cast<py::ssize_t>(frame.elemSize()), 1};
+        
+        py::array_t<uint8_t> numpy_frame(shape, strides, frame.data);
 
-        py::array_t<uint8_t> numpy_frame(
-            shape,      // shape 정보 전달 (H, W, C)
-            strides,    // strides 정보 전달 (row stride, column stride, element stride)
-            frame.data  // 데이터 포인터
-        );
+        // ✅ Metadata에서 Simulation 상태 정보 가져오기
+        int done = metadata.contains("done") ? metadata["done"].get<int>() : DONE_NONE;
+        std::vector<std::string> reasons;
+        if (metadata.contains("reasons") && metadata["reasons"].is_array()) {
+            for (const auto& reason : metadata["reasons"]) {
+                reasons.push_back(reason.get<std::string>());
+            }
+        }
+        int mode = metadata.contains("mode") ? metadata["mode"].get<int>() : 0;
 
-        py::dict py_metadata = jsonToPyDict(metadata);
-        return std::make_pair(numpy_frame, py_metadata);
+        // ✅ pusher_state 변환 (없으면 py::none())
+        py::object pusher_state = py::none();
+        if (metadata.contains("pusher") && metadata["pusher"].is_array()) {
+            std::vector<float> pusher_data;
+            for (const auto& val : metadata["pusher"]) {
+                pusher_data.push_back(val.get<float>());
+            }
+            pusher_state = PySimulationViewer::getPusherState(pusher_data);
+        }
+
+        // ✅ slider_state 변환 (없으면 py::none())
+        py::object slider_state = py::none();
+        if (metadata.contains("sliders") && metadata["sliders"].is_array()) {
+            std::vector<std::vector<float>> slider_data;
+            for (const auto& row : metadata["sliders"]) {
+                if (row.is_array()) {
+                    std::vector<float> slider_row;
+                    for (const auto& val : row) {
+                        slider_row.push_back(val.get<float>());
+                    }
+                    slider_data.push_back(slider_row);
+                }
+            }
+            slider_state = PySimulationViewer::getSliderState(slider_data);
+        }
+
+        // ✅ action 데이터 가져오기
+        std::vector<float> action;
+        if (metadata.contains("action") && metadata["action"].is_array()) {
+            for (const auto& val : metadata["action"]) {
+                action.push_back(val.get<float>());
+            }
+        }
+
+        // ✅ SimulationResult 생성
+        SimulationResult result = {
+            done,           // Simulation 종료 상태
+            reasons,        // 종료 이유 리스트
+            mode,           // Simulation mode
+            numpy_frame,    // 이미지 상태
+            pusher_state,   // Pusher 상태
+            slider_state    // Slider 상태
+        };
+
+        // ✅ SimulationResult와 action을 함께 반환
+        return std::make_tuple(result, action);
     }
+
+
 
 private:
     Player& player;
@@ -697,42 +746,55 @@ PYBIND11_MODULE(quasi_static_push, m) {
         .def("keyboard_input", &PySimulationViewer::keyboard_input);
 
     py::class_<Player>(m, "Player", R"pbdoc(
-        Player class for replaying recorded videos.
+        Player class for replaying recorded simulation data.
 
-        This class loads videos and their corresponding metadata from a directory.
-        It provides an iterator for retrieving frames and metadata one by one.
+        This class loads simulation recordings and provides an iterator to retrieve 
+        simulation states (`SimulationResult`) and corresponding actions.
 
         Parameters:
         -----------
-        - directory (str, default="recordings"): Path to the directory containing video recordings.
+        - directory (str, default="recordings"): Path to the recorded simulation data.
 
         Methods:
         --------
         __iter__()
-            Returns an iterator over the frames in the loaded videos.
+            Returns an iterator that yields `SimulationResult` and `action`.
 
         Example:
         --------
         ```python
         player = Player("recordings")
-        for frame, metadata in player:
-            cv2.imshow("Replay", frame)
-            if cv2.waitKey(30) == 27:  # ESC to exit
-                break
+
+        for sim_result, action in player:
+            print(f"Simulation Mode: {sim_result.mode}, Done: {sim_result.done}")
+            print(f"Action Taken: {action}")
         ```
     )pbdoc")
         .def(py::init<std::string>(), py::arg("directory") = "recordings")
         .def("__iter__", [](Player& self) { return PyPlayerIterator(self); });
 
     py::class_<PyPlayerIterator>(m, "PyPlayerIterator", R"pbdoc(
-        Iterator for processing frames from Player.
+        Iterator for processing frames from recorded simulation data.
+
+        This iterator retrieves simulation states (`SimulationResult`) and corresponding actions (`action`)
+        for each recorded frame.
 
         Methods:
         --------
         __next__()
-            Retrieves the next frame and its corresponding metadata.
-            Raises `StopIteration` when all frames are exhausted.
+            Retrieves the next simulation frame and its corresponding action.
+
+            Returns:
+            --------
+            Tuple[SimulationResult, List[float]]:
+                - `SimulationResult`: Contains simulation state information.
+                - `action` (List[float]): Control inputs applied in the simulation step.
+
+            Raises:
+            -------
+            - `StopIteration`: When all frames are exhausted.
     )pbdoc")
         .def("__iter__", [](PyPlayerIterator& self) -> PyPlayerIterator& { return self; })
         .def("__next__", &PyPlayerIterator::next);
+
 }
