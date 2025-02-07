@@ -10,8 +10,8 @@ sys.path.append(so_file_path)
 from quasi_static_push import SimulationViewer, Player
 
 player = Player("recordings")
-for frame, metadata in player:
-    cv2.imshow("Replay", frame)
+for is_new, data, action in player:
+    cv2.imshow("Replay", data.image_state)
     time.sleep(1/30)
     if cv2.waitKey(30) == 27:  # ESC 키로 종료
         break
@@ -32,7 +32,7 @@ viewer = SimulationViewer(
     headless            = False,
     move_to_target      = True,
     show_closest_point  = False,
-    recording_enabled   = True,
+    # recording_enabled   = True,
     recording_path      = "recordings",
     )
 
@@ -75,7 +75,7 @@ while True:
         start = time.time()
         input  = viewer.keyboard_input()
         result = viewer.run(input[0])
-        print("Time spent [Hz]: {:.2f}".format(1/(time.time() - start)))
+        print("Time spent [Hz]: {:.2f}".format(1 / (time.time() - start)))
 
         time.sleep(0.0001)  # CPU 부하 방지
         if input[1]: 
