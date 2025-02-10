@@ -4,7 +4,7 @@ import time
 import numpy as np
 import cv2
 
-so_file_path = os.path.abspath("build/build")
+so_file_path = os.path.abspath("../build/build")
 sys.path.append(so_file_path)
 
 from quasi_static_push import SimulationViewer, Player
