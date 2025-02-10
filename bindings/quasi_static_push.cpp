@@ -78,8 +78,8 @@ public:
         int window_width = 1600, 
         int window_height = 1600, 
         float scale = 400.0f,
-        float tableWidth = 2.0,
-        float tableHeight = 2.0,
+        float tableWidth = 3.0,
+        float tableHeight = 3.0,
         float frame_rate = 100,
         int frame_skip = 10,
         bool grid = true,
@@ -799,8 +799,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
         - window_width (int, default=1600): Width of the simulation window in pixels.
         - window_height (int, default=1600): Height of the simulation window in pixels.
         - scale (float, default=400.0): Scale factor for visualization.
-        - tableWidth (float, default=2.0): Width of the simulation table in meters.
-        - tableHeight (float, default=2.0): Height of the simulation table in meters.
+        - tableWidth (float, default=3.0): Width of the simulation table in meters.
+        - tableHeight (float, default=3.0): Height of the simulation table in meters.
         - frame_rate (float, default=100.0): Frame rate of the simulation (Hz).
         - frame_skip (int, default=10): Number of frames to skip during simulation.
         - grid (bool, default=True): Enable or disable grid visualization.
@@ -845,8 +845,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
-             py::arg("tableWidth") = 2.0f,
-             py::arg("tableHeight") = 2.0f,
+             py::arg("tableWidth") = 3.0f,
+             py::arg("tableHeight") = 3.0f,
              py::arg("frame_rate") = 100.0f,
              py::arg("frame_skip") = 10,
              py::arg("grid") = true,
@@ -874,8 +874,8 @@ PYBIND11_MODULE(quasi_static_push, m) {
                 3, 120.0f, "superellipse", {{"a", 0.015f}, {"b", 0.03f}, {"n", 10}}, 
                 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f
             },
-            py::arg("newtableWidth") = 2.0f,
-            py::arg("newtableHeight") = 2.0f)
+            py::arg("newtableWidth") = 3.0f,
+            py::arg("newtableHeight") = 3.0f)
         .def("run", &PySimulationViewer::run)
         .def("keyboard_input", &PySimulationViewer::keyboard_input);
 
