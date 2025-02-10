@@ -145,6 +145,7 @@ public:
         viewer.reset(newtableWidth, newtableHeight, true);
         viewer.addDiagram(pushers.get_pushers(), "pink");
         viewer.addDiagram(sliders.get_sliders(), "blue");
+        viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple");
         viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "green");
         
         table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
@@ -166,6 +167,7 @@ public:
             if (!(param->phi.array() < 0).any()){
                 mode = 0;
                 viewer.changeDiagramColor(pushers.get_pushers(), "red");
+                viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "purple");
             }
         }
 
