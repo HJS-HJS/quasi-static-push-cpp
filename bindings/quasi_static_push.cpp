@@ -37,6 +37,12 @@ enum SimulationDoneReason {
     DONE_GRASP_FAILED = 4   // Grasp failed due to insufficient grip
 };
 
+enum GripperMotion {
+    MOVE_XY = 0,          // Default: No termination condition met
+    MOVE_TO_TARGET = 1,   // The object has fallen outside the table bounds
+    MOVE_FORWARD = 2,     // Gripper move its forward direction
+};
+
 // Structure to store the simulation results
 struct __attribute__ ((visibility("hidden"))) SimulationResult {
     int done;                       // Bitwise OR of SimulationDoneReason values
@@ -62,7 +68,7 @@ class PySimulationViewer {
      * @param frame_skip Number of frames to skip during simulation.
      * @param grid Enable or disable grid visualization.
      * @param headless Enable or disable rendering.
-     * @param move_to_target Enable automatic movement to a target.
+     * @param gripper_movement Enable automatic movement to a target.
      * @param show_closest_point Highlight closest contact points in visualization.
      * @param recording_enabled Enable recording of simulation frames.
      * @param recording_path Path to save recorded frames.
@@ -79,7 +85,7 @@ public:
         bool grid = true,
         float grid_space = 0.1f,
         bool headless = false,
-        bool move_to_target = true,
+        int gripper_movement = 0,
         bool show_closest_point = false,
         bool recording_enabled = false,
         std::string recording_path = "recordings"
@@ -90,7 +96,7 @@ public:
             frame_rate(frame_rate),
             frame_skip(frame_skip),
             show_closest_point(show_closest_point),
-            move_to_target(move_to_target),
+            gripper_movement(gripper_movement),
             recording_enabled(recording_enabled),
             recording_path(recording_path) {
         if (recording_enabled) {
@@ -154,7 +160,18 @@ public:
      * @return SimulationResult containing simulation status, rendered image, and state information.
      */
     SimulationResult run(const std::vector<float>& u_input) {
-        simulate_(u_input);
+
+        if(u_input.back() > 0.5f && mode < 0){
+            param->update_param();
+            if (!(param->phi.array() < 0).any()){
+                mode = 0;
+                viewer.changeDiagramColor(pushers.get_pushers(), "red");
+            }
+        }
+
+        Eigen::VectorXf transformed_u = applyGripperMovement(u_input);
+
+        simulate_(transformed_u);
         int condition = isDishOut_(); 
         int grasp = grasp_();
 
@@ -182,7 +199,7 @@ public:
 
         // Record image and data
         if (recording_enabled && recorder) {
-            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), done, reasons, mode, pushers.q, sliders.get_status(), u_input);
+            recorder->saveFrame(SDL_SurfaceToMat(viewer.getRenderedImage()), done, reasons, mode, pushers.q, sliders.get_status(), std::vector<float>(transformed_u.data(), transformed_u.data() + transformed_u.size()));
         }
         
         return {
@@ -230,7 +247,7 @@ private:
     float frame_rate;
     int frame_skip;
     bool show_closest_point;
-    bool move_to_target;
+    int gripper_movement;
     int mode;
 
     // Recorder
@@ -251,43 +268,49 @@ private:
         }
     }
 
-    bool simulate_(const std::vector<float>& u_input) {
-        if (!sim) {
-            throw std::runtime_error("Simulation not initialized. Call reset() first.");
+    Eigen::MatrixXf applyGripperMovement(const std::vector<float>& u_input){
+        Eigen::Matrix2f rot_;
+        if (gripper_movement == MOVE_XY) {
+            rot_ << 0, -1,
+                    1,  0;
         }
+        else if (gripper_movement == MOVE_TO_TARGET) {
+            std::vector<float> v_(2);
+            std::transform(pushers.q.begin(), pushers.q.begin()+2, sliders[0]->q.begin(), v_.begin(), std::minus<float>());
 
-        bool success = true;
+            float angle_ = std::atan2(v_[1], v_[0]) + M_PI / 2;
+            float cos_r = std::cos(angle_);
+            float sin_r = std::sin(angle_);
 
-        if(u_input.back() > 0.5f && mode < 0){
-            param->update_param();
-            if ((param->phi.array() < 0).any()){
-                success = false;
-            }
-            else{
-                mode = 0;
-                viewer.changeDiagramColor(pushers.get_pushers(), "red");
-            }
+            rot_ << -sin_r, -cos_r,
+                     cos_r, -sin_r;
         }
-
-        Eigen::Matrix2f _rot;
-        if (move_to_target) {
+        else if (gripper_movement == MOVE_FORWARD) {
             float cos_r = std::cos(pushers.get_rot());
             float sin_r = std::sin(pushers.get_rot());
 
-            _rot << -sin_r, -cos_r,
-                    cos_r, -sin_r;
-        } else {
-            _rot << 1, 0,
-                    0, 1;
+            rot_ << -sin_r, -cos_r,
+                     cos_r, -sin_r;
         }
-
+        else{
+            throw std::invalid_argument("Gripper Movement is not defined");
+        }
+        
         // 입력 벡터 u_input 변환
         Eigen::VectorXf u = Eigen::Map<const Eigen::VectorXf>(u_input.data(), u_input.size());
 
         Eigen::VectorXf transformed_u(4);
-        transformed_u.head<2>() = _rot * u.head<2>();  // 회전 적용
+        transformed_u.head<2>() = rot_ * u.head<2>();  // 회전 적용
         transformed_u(2) = u(2);
         transformed_u(3) = u(3);
+
+        return transformed_u;
+    }
+
+    void simulate_(Eigen::VectorXf& u_input) {
+        if (!sim) {
+            throw std::runtime_error("Simulation not initialized. Call reset() first.");
+        }
 
         for (int i = 0; i < frame_skip; i++){
             // 시뮬레이션 준비
@@ -295,7 +318,7 @@ private:
             // 시뮬레이션 실행
 
             if(mode == -1){
-                auto ans = sim->run(transformed_u / frame_rate, true);
+                auto ans = sim->run(u_input / frame_rate, true);
 
                 // 결과 가져오기
                 std::vector<float> qp = std::get<1>(ans);
@@ -308,7 +331,7 @@ private:
                 pushers.apply_q(qp);    
             }
             else{
-                auto ans = sim->run(transformed_u / frame_rate, false);
+                auto ans = sim->run(u_input / frame_rate, false);
 
                 // 결과 가져오기
                 std::vector<float> qs = std::get<0>(ans);
@@ -326,7 +349,7 @@ private:
             }
         }
 
-        return success;
+        return;
     }
 
     int grasp_() {
@@ -510,8 +533,8 @@ public:
 
         // ✅ pusher_state 변환 (없으면 py::none())
         py::object pusher_state = py::none();
+        std::vector<float> pusher_data;
         if (metadata.contains("pusher") && metadata["pusher"].is_array()) {
-            std::vector<float> pusher_data;
             for (const auto& val : metadata["pusher"]) {
                 pusher_data.push_back(val.get<float>());
             }
@@ -520,8 +543,8 @@ public:
 
         // ✅ slider_state 변환 (없으면 py::none())
         py::object slider_state = py::none();
+        std::vector<std::vector<float>> slider_data;
         if (metadata.contains("sliders") && metadata["sliders"].is_array()) {
-            std::vector<std::vector<float>> slider_data;
             for (const auto& row : metadata["sliders"]) {
                 if (row.is_array()) {
                     std::vector<float> slider_row;
@@ -535,12 +558,44 @@ public:
         }
 
         // ✅ action 데이터 가져오기
-        std::vector<float> action;
+        Eigen::VectorXf action_;
         if (metadata.contains("action") && metadata["action"].is_array()) {
-            for (const auto& val : metadata["action"]) {
-                action.push_back(val.get<float>());
-            }
+            std::vector<float> action_vec = metadata["action"].get<std::vector<float>>();
+            action_ = Eigen::Map<const Eigen::VectorXf>(action_vec.data(), action_vec.size());
         }
+
+        // Convert action data to propriate move mode
+        Eigen::Matrix2f rot_;
+        if (player.gripperMovement == MOVE_XY) {
+            rot_ <<  0, 1,
+                    -1, 0;
+        }
+        else if (player.gripperMovement == MOVE_TO_TARGET) {
+            std::vector<float> v_(2);
+            std::transform(pusher_data.begin(), pusher_data.begin() + 2, slider_data[0].begin(), v_.begin(), std::minus<float>());
+
+            float angle_ = -(std::atan2(v_[1], v_[0]) + M_PI / 2);
+            float cos_r = std::cos(angle_);
+            float sin_r = std::sin(angle_);
+
+            rot_ <<  sin_r, cos_r,
+                    -cos_r, sin_r;
+        }
+        else if (player.gripperMovement == MOVE_FORWARD) {
+            float cos_r = std::cos(pusher_data[2]);
+            float sin_r = std::sin(pusher_data[2]);
+
+            rot_ << -sin_r, -cos_r,
+                     cos_r, -sin_r;
+        }
+        else
+        {
+            throw std::invalid_argument("Gripper Movement is not defined");
+        }
+
+        action_.head<2>() = rot_ * action_.head<2>();  // 회전 적용
+
+        std::vector<float> action(action_.data(), action_.data() + action_.size());
 
         // ✅ SimulationResult 생성
         SimulationResult result = {
@@ -593,30 +648,78 @@ private:
 
 PYBIND11_MODULE(quasi_static_push, m) {
     m.doc() = R"pbdoc(
-        Quasi-static push simulation module using pybind11.
+        Quasi-Static Push Simulation Module using pybind11.
 
-        This module provides an interface to simulate object pushing and grasping.
-        It integrates a physics-based simulation with a visualization engine, allowing
-        users to control pushers, sliders, and obstacles in a 2D environment.
+        This module provides an interface for simulating quasi-static object pushing
+        and grasping in a 2D physics-based environment. It integrates a simulation engine
+        with a visualization module, allowing users to interact with pushers, sliders,
+        and obstacles. The module supports step-by-step execution, simulation state retrieval,
+        and visualization.
 
         Features:
         ----------
-        - Object pushing and grasping simulation.
-        - Detection of simulation termination conditions.
-        - Image rendering and state retrieval.
-        - Support for recording simulation frames.
+        - Quasi-static object pushing and grasping simulation.
+        - Configurable simulation environment with different object types.
+        - Collision detection and tracking of closest contact points.
+        - Real-time image rendering and state retrieval.
+        - Automatic movement of the pusher towards the target.
+        - Recording and playback of simulation frames.
         - Iterative playback of recorded videos with metadata.
 
         Classes:
         --------
-        - `SimulationViewer`: Core simulation environment.
-        - `Player`: Video player for replaying recorded simulations.
-        - `PyPlayerIterator`: Iterator for processing frames in Python.
+        - `SimulationViewer`: Core simulation environment that manages objects and interactions.
+        - `Player`: Loads and replays recorded simulation data.
+        - `PyPlayerIterator`: Iterator for accessing frames from the recorded simulation.
 
         Enumerations:
         -------------
-        - `SimulationDoneReason`: Defines various simulation stopping conditions.
+        - `SimulationDoneReason`: Defines different conditions that can terminate a simulation.
+        - `GripperMotion`: Specifies gripper movement modes.
 
+        Simulation Workflow:
+        --------------------
+        1. Create a `SimulationViewer` instance with the desired environment settings.
+        2. Add objects (pushers, sliders) and configure simulation parameters.
+        3. Run the simulation step-by-step using the `run()` method.
+        4. Retrieve the current state, rendered image, and simulation results.
+        5. Optionally, enable recording to save simulation frames for later replay.
+        6. Use the `Player` class to iterate through recorded frames.
+
+        Example Usage:
+        --------------
+        ```python
+        from quasi_static_push import SimulationViewer, SimulationDoneReason, Player
+
+        # Initialize the simulation viewer
+        sim = SimulationViewer(window_width=1600, window_height=1600, scale=400.0, frame_rate=100)
+
+        # Define object parameters
+        slider_inputs = [("circle", [0.0, -0.5, 0.0, 0.45])]
+        pusher_input = (3, 120.0, "superellipse", {"a": 0.015, "b": 0.03, "n": 10}, 0.10, 0.185, 0.04, 0.0, -1.2, 0.0)
+
+        # Reset the environment with new objects
+        sim.reset(slider_inputs, pusher_input, newtableWidth=2.0, newtableHeight=2.0)
+
+        # Run simulation steps
+        for _ in range(100):
+            result = sim.run([0.1, 0.0, 0.0, 0.0])  # Example action
+            if result.done:
+                print("Simulation ended with reason:", result.reasons)
+                break
+        ```
+
+        Example: Playing Recorded Simulation
+        ------------------------------------
+        ```python
+        from quasi_static_push import Player
+
+        player = Player("recordings")
+
+        for new_video, result, action in player:
+            print(f"Frame: {result.image_state.shape}, Mode: {result.mode}, Done: {result.done}")
+            print(f"Action Taken: {action}")
+        ```
     )pbdoc";
 
     py::enum_<SimulationDoneReason>(m, "SimulationDoneReason", R"pbdoc(
@@ -633,6 +736,18 @@ PYBIND11_MODULE(quasi_static_push, m) {
         .value("DONE_FALL_OUT", DONE_FALL_OUT)
         .value("DONE_GRASP_SUCCESS", DONE_GRASP_SUCCESS)
         .value("DONE_GRASP_FAILED", DONE_GRASP_FAILED)
+        .export_values();
+
+    py::enum_<GripperMotion>(m, "GripperMotion", R"pbdoc(
+        Enum representing gripper movement modes.
+
+        Values:
+        -------
+        - MOVE_XY (0): Move in XY-plane without rotation.
+        - MOVE_TO_TARGET (1): Rotate and move towards a specified target.
+    )pbdoc")
+        .value("MOVE_XY", MOVE_XY)
+        .value("MOVE_TO_TARGET", MOVE_TO_TARGET)
         .export_values();
 
     py::class_<SimulationResult>(m, "SimulationResult", R"pbdoc(
@@ -672,7 +787,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
         - grid (bool, default=True): Enable or disable grid visualization.
         - grid_space (float, default=0.1): Grid spacing in meters.
         - headless (bool, default=False): Enable or disable rendering.
-        - move_to_target (bool, default=True): Enable automatic movement to a target.
+        - gripper_movement (int, default=0): Enable automatic movement to a target.
         - show_closest_point (bool, default=True): Highlight closest contact points in visualization.
         - recording_enabled (bool, default=False): Enable recording of simulation frames.
         - recording_path (str, default="recordings"): Path to save recorded frames.
@@ -707,7 +822,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
               - Second element: Boolean indicating whether any key was pressed.
               - Third element: Boolean indicating whether input changed since the last call.
     )pbdoc")
-        .def(py::init<int, int, float, float, float, float, int, bool, float, bool, bool, bool, bool, std::string>(),
+        .def(py::init<int, int, float, float, float, float, int, bool, float, bool, int, bool, bool, std::string>(),
              py::arg("window_width") = 1600,
              py::arg("window_height") = 1600,
              py::arg("scale") = 400.0f,
@@ -718,7 +833,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
              py::arg("grid") = true,
              py::arg("grid_space") = 0.1f,
              py::arg("headless") = false,
-             py::arg("move_to_target") = true,
+             py::arg("gripper_movement") = 0,
              py::arg("show_closest_point") = true,
              py::arg("recording_enabled") = false,
              py::arg("recording_path") = "recordings")
@@ -754,6 +869,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
         Parameters:
         -----------
         - directory (str, default="recordings"): Path to the recorded simulation data.
+        - gripper_movement (GripperMotion, default=GripperMotion.MOVE_XY): Defines the movement mode of the gripper.
 
         Methods:
         --------
@@ -763,14 +879,16 @@ PYBIND11_MODULE(quasi_static_push, m) {
         Example:
         --------
         ```python
-        player = Player("recordings")
+        from quasi_static_push import Player, GripperMotion
+
+        player = Player("recordings", GripperMotion.MOVE_TO_TARGET)
 
         for sim_result, action in player:
             print(f"Simulation Mode: {sim_result.mode}, Done: {sim_result.done}")
             print(f"Action Taken: {action}")
         ```
     )pbdoc")
-        .def(py::init<std::string>(), py::arg("directory") = "recordings")
+        .def(py::init<std::string, GripperMotion>(), py::arg("directory") = "recordings", py::arg("gripper_movement") = GripperMotion::MOVE_XY)
         .def("__iter__", [](Player& self) { return PyPlayerIterator(self); });
 
     py::class_<PyPlayerIterator>(m, "PyPlayerIterator", R"pbdoc(

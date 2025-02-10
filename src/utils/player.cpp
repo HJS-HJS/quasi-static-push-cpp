@@ -1,6 +1,6 @@
 #include "utils/player.h"
 
-Player::Player(const std::string& directory) : directory(directory), currentVideoIndex(0), currentFrameIndex(0) {
+Player::Player(const std::string& directory, const int gripper_movement) : directory(directory), gripperMovement(gripper_movement), currentVideoIndex(0), currentFrameIndex(0) {
     // ✅ 폴더 존재 여부 확인
     if (!std::filesystem::exists(directory)) {
         // std::cerr << "[Player] ❌ Directory not found: " << directory << std::endl;

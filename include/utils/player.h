@@ -17,7 +17,7 @@ using json = nlohmann::json;
 
 class Player {
 public:
-    explicit Player(const std::string& directory);
+    explicit Player(const std::string& directory, const int gripper_movement);
     ~Player();
 
     bool loadNextVideo();
@@ -41,6 +41,8 @@ public:
 
     Iterator begin();
     Iterator end();
+    
+    int gripperMovement;
 
 private:
     std::string directory;
