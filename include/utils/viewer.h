@@ -23,7 +23,7 @@ private:
     SDL_Window* window; // Moved below
     SDL_Renderer* renderer;
     std::unordered_map<const Diagram*, SDL_Color> currentDiagrams;
-    std::unordered_map<const Diagram*, SDL_Texture*> diagramTextures; // Store pre-rendered textures
+    std::unordered_map<const Diagram*, std::pair<SDL_Texture*, bool>> diagramTextures;
 
     // Predefined colors
     std::unordered_map<std::string, SDL_Color> colorMap = {
@@ -53,17 +53,18 @@ public:
     void setGridVisibility(bool visibility);
     void setGridSpacing(float spacing);
     // Add a single diagram
-    void addDiagram(const Diagram* diagram, const std::string& colorName);
+    void addDiagram(const Diagram* diagram, const std::string& colorName, bool priority);
     // Add multiple diagrams
-    void addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName);
-    void renderDiagram(const Diagram* diagram, const SDL_Color& color);
+    void addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName, bool priority);
+    void renderDiagram(const Diagram* diagram, const SDL_Color& color, bool priority);
     void removeDiagram(const Diagram* diagram);
-    void changeDiagramColor(const Diagram* diagram, const std::string& newColorName);
-    void changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName);
+    void changeDiagramColor(const Diagram* diagram, const std::string& newColorName, bool priority = false);
+    void changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority = false);
     void reset(float newTableWidth, float newTableHeight, bool newDisplayWindow);
     // void render();
     void render(const std::vector<std::vector<float>>& points = {}, 
                 const std::vector<std::tuple<float, float, float, float>>& arrows = {});
+    void renderTexture(const Diagram* diagram, SDL_Texture* texture);
     SDL_Surface* getRenderedImage();
     std::tuple<std::array<float, 5>, bool, bool> getKeyboardInput();
 };

@@ -33,8 +33,8 @@ SimulationViewer::SimulationViewer(int width, int height, float unit, float tabl
 }
 
 SimulationViewer::~SimulationViewer() {
-    for (auto& [diagram, texture] : diagramTextures) {
-        SDL_DestroyTexture(texture);
+    for (auto& [diagram, texturePair] : diagramTextures) {
+        SDL_DestroyTexture(texturePair.first);
     }
     if (renderer) {
         SDL_DestroyRenderer(renderer);
@@ -53,7 +53,7 @@ void SimulationViewer::setGridSpacing(float spacing) {
     gridSpacingMeters = spacing;
 }
 
-void SimulationViewer::renderDiagram(const Diagram* diagram, const SDL_Color& color) {
+void SimulationViewer::renderDiagram(const Diagram* diagram, const SDL_Color& color, bool priority) {
     float rotation = diagram->q[2];
     int point_size = 2000;
 
@@ -104,62 +104,63 @@ void SimulationViewer::renderDiagram(const Diagram* diagram, const SDL_Color& co
     SDL_RenderFillRect(renderer, &vertical_bar);
 
     SDL_SetRenderTarget(renderer, nullptr);
-    diagramTextures[diagram] = texture;
+    diagramTextures[diagram] = std::make_pair(texture, priority);
 }
 
-void SimulationViewer::addDiagram(const Diagram* diagram, const std::string& colorName) {
+void SimulationViewer::addDiagram(const Diagram* diagram, const std::string& colorName, bool priority) {
     if (colorMap.find(colorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + colorName);
     }
     SDL_Color color = colorMap[colorName];
-    renderDiagram(diagram, color);
+    renderDiagram(diagram, color, priority);
 }
 
-void SimulationViewer::addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName) {
+
+void SimulationViewer::addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName, bool priority) {
     if (colorMap.find(colorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + colorName);
     }
     SDL_Color color = colorMap[colorName];
     for (const auto& diagram : diagrams) {
-        renderDiagram(diagram.get(), color);
+        renderDiagram(diagram.get(), color, priority);
     }
 }
 
 void SimulationViewer::removeDiagram(const Diagram* diagram) {
     auto it = diagramTextures.find(diagram);
     if (it != diagramTextures.end()) {
-        SDL_DestroyTexture(it->second);
+        SDL_DestroyTexture(it->second.first);
         diagramTextures.erase(it);
     }
     currentDiagrams.erase(diagram);
 }
-void SimulationViewer::changeDiagramColor(const Diagram* diagram, const std::string& newColorName) {
+void SimulationViewer::changeDiagramColor(const Diagram* diagram, const std::string& newColorName, bool priority) {
     if (colorMap.find(newColorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + newColorName);
     }
 
     auto it = diagramTextures.find(diagram);
     if (it != diagramTextures.end()) {
-        SDL_DestroyTexture(it->second);
+        SDL_DestroyTexture(it->second.first);
         diagramTextures.erase(it);
     }
 
     SDL_Color newColor = colorMap[newColorName];
-    renderDiagram(diagram, newColor);
+    renderDiagram(diagram, newColor, priority);
 }
-void SimulationViewer::changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName) {
+void SimulationViewer::changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority) {
     if (colorMap.find(newColorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + newColorName);
     }
     for (const auto& diagram : diagrams) {
         auto it = diagramTextures.find(diagram.get());
         if (it != diagramTextures.end()) {
-            SDL_DestroyTexture(it->second);
+            SDL_DestroyTexture(it->second.first);
             diagramTextures.erase(it);
         }
 
         SDL_Color newColor = colorMap[newColorName];
-        renderDiagram(diagram.get(), newColor);
+        renderDiagram(diagram.get(), newColor, priority);
     }
 }
 
@@ -168,7 +169,7 @@ void SimulationViewer::reset(float newtableWidth, float newtableHeight, bool new
     tableHeight = (int)(newtableHeight * unit);
 
     for (auto& [diagram, texture] : diagramTextures) {
-        SDL_DestroyTexture(texture);
+        SDL_DestroyTexture(texture.first);
     }
     diagramTextures.clear();
 
@@ -220,23 +221,16 @@ void SimulationViewer::render(const std::vector<std::vector<float>>& points,
 
     drawBackground();
     drawGrid();
-
-    for (const auto& [diagram, texture] : diagramTextures) {
-        const auto& position = diagram->q;
-
-        // Calculate target rectangle for rendering
-        SDL_Rect targetRect;
-        float width  = diagram->radius * 2 * unit;
-        float height = diagram->radius * 2 * unit;
-        // targetRect.x = static_cast<int>(position[0] * unit + width / 2);
-        // targetRect.y = static_cast<int>(-position[1] * unit + height / 2);
-        targetRect.x = static_cast<int>(position[0] * unit + screenWidth / 2 - width / 2);
-        targetRect.y = static_cast<int>(-position[1] * unit + screenHeight / 2 - height / 2);
-        targetRect.w = static_cast<int>(width);
-        targetRect.h = static_cast<int>(height);
-
-        // Render the texture at the updated position
-        SDL_RenderCopyEx(renderer, texture, nullptr, &targetRect, -position[2] * 180 / M_PI, nullptr, SDL_FLIP_NONE);
+    
+    for (const auto& [diagram, pair] : diagramTextures) {
+        if (!pair.second) { // priority == false 인 도형
+            renderTexture(diagram, pair.first);
+        }
+    }
+    for (const auto& [diagram, pair] : diagramTextures) {
+        if (pair.second) { // priority == false 인 도형
+            renderTexture(diagram, pair.first);
+        }
     }
 
     // Draw points and arrows
@@ -246,6 +240,20 @@ void SimulationViewer::render(const std::vector<std::vector<float>>& points,
     if (displayWindow) {
         SDL_RenderPresent(renderer);
     }
+}
+
+void SimulationViewer::renderTexture(const Diagram* diagram, SDL_Texture* texture) {
+    const auto& position = diagram->q;
+
+    SDL_Rect targetRect;
+    float width  = diagram->radius * 2 * unit;
+    float height = diagram->radius * 2 * unit;
+    targetRect.x = static_cast<int>(position[0] * unit + screenWidth / 2 - width / 2);
+    targetRect.y = static_cast<int>(-position[1] * unit + screenHeight / 2 - height / 2);
+    targetRect.w = static_cast<int>(width);
+    targetRect.h = static_cast<int>(height);
+
+    SDL_RenderCopyEx(renderer, texture, nullptr, &targetRect, -position[2] * 180 / M_PI, nullptr, SDL_FLIP_NONE);
 }
 
 void SimulationViewer::drawPoints(const std::vector<std::vector<float>>& points, const std::string& colorName, int thickness) const {

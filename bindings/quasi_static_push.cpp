@@ -144,10 +144,10 @@ public:
         );
 
         viewer.reset(newtableWidth, newtableHeight, true);
-        viewer.addDiagram(pushers.get_pushers(), "pink");
-        viewer.addDiagram(sliders.get_sliders(), "blue");
-        viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple");
-        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "green");
+        viewer.addDiagram(sliders.get_sliders(), "blue", false);
+        viewer.addDiagram(pushers.get_pushers(), "pink", true);
+        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "green", false);
+        viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple", true);
         
         table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
 
@@ -167,14 +167,14 @@ public:
             param->update_param();
             if (!(param->phi.array() < 0).any()){
                 mode = 0;
-                viewer.changeDiagramColor(pushers.get_pushers(), "red");
-                viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "purple");
+                viewer.changeDiagramColor(pushers.get_pushers(), "red", true);
+                viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "purple", true);
             }
         }
         else if(u_input.back() < 0.5f){
             mode = -1;
-            viewer.changeDiagramColor(pushers.get_pushers(), "pink");
-            viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple");
+            viewer.changeDiagramColor(pushers.get_pushers(), "pink", true);
+            viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple", true);
         }
 
         Eigen::VectorXf transformed_u = applyGripperMovement(u_input);

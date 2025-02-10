@@ -58,8 +58,8 @@ int main() {
         std::vector<float> move_pusher = {0.0f, 0.0f, 0.0f, 0.0f};
 
         // Add diagrams to viewer
-        viewer.addDiagram(pushers.get_pushers(), "red");
-        viewer.addDiagram(sliders.get_sliders(), "blue");
+        viewer.addDiagram(pushers.get_pushers(), "red", true);
+        viewer.addDiagram(sliders.get_sliders(), "blue", false);
 
         // Main loop
         SDL_Event event;
