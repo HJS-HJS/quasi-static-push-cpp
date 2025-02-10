@@ -32,8 +32,8 @@ void ObjectPusher::reset(int n_finger, float finger_angle,
         if (type == "circle")            pushers.push_back(std::make_unique<Circle>(0.0f, 0.0f, 0.0f, diagram_param.at("r")));
         else if (type == "ellipse")      pushers.push_back(std::make_unique<Ellipse>(0.0f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("b")));
         else if (type == "superellipse") pushers.push_back(std::make_unique<SuperEllipse>(0.1f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("b"), diagram_param.at("n")));
-        else if (type == "rpolygon")     pushers.push_back(std::make_unique<RPolygon>(0.0f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("k")));
-        else if (type == "srpolygon")    pushers.push_back(std::make_unique<SmoothRPolygon>(0.0f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("k")));
+        else if (type == "rpolygon")     pushers.push_back(std::make_unique<RPolygon>(0.0f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("n")));
+        else if (type == "srpolygon")    pushers.push_back(std::make_unique<SmoothRPolygon>(0.0f, 0.0f, 0.0f, diagram_param.at("a"), diagram_param.at("n")));
     }
 
     // Initialize pushers
