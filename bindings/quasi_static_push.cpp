@@ -92,6 +92,7 @@ public:
         ) : viewer(window_width, window_height, scale, tableWidth, tableHeight, grid, grid_space, !headless),
             pushers(3, 120.0f, "superellipse", { {"a", 0.015f}, {"b", 0.03f}, {"n", 10} }, 0.10f, 0.185f, 0.04f, 0.0f, -1.2f, 0.0f),
             param(std::make_shared<ParamFunction>(sliders, pushers, obstacles)),
+            window_limit(std::array<float, 2>{float(window_width) / 2 / scale, float(window_height) / 2 / scale}),
             table_limit(std::array<float, 2>{tableWidth/2, tableHeight/2}),
             frame_rate(frame_rate),
             frame_skip(frame_skip),
@@ -245,6 +246,7 @@ private:
     ObjectSlider obstacles;
     std::shared_ptr<ParamFunction> param;
     std::unique_ptr<QuasiStateSim> sim;
+    std::array<float, 2> window_limit;
     std::array<float, 2> table_limit;
     float frame_rate;
     int frame_skip;
@@ -325,12 +327,17 @@ private:
                 // 결과 가져오기
                 std::vector<float> qp = std::get<1>(ans);
 
+                // Limit qp inside of the window
+                for (size_t i = 0; i < 2; i++) {
+                    qp[i] = std::clamp(qp[i], -window_limit[i] + qp[3], window_limit[i] - qp[3]);
+                }
+
                 // 이전 상태 저장 후 업데이트
                 std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
 
                 // 새로운 상태 적용
                 pushers.apply_v(qp_diff);
-                pushers.apply_q(qp);    
+                pushers.apply_q(qp);
             }
             else{
                 auto ans = sim->run(u_input / frame_rate, false);
@@ -338,6 +345,11 @@ private:
                 // 결과 가져오기
                 std::vector<float> qs = std::get<0>(ans);
                 std::vector<float> qp = std::get<1>(ans);
+
+                // Limit qp inside of the window
+                for (size_t i = 0; i < 2; i++) {
+                    qp[i] = std::clamp(qp[i], -window_limit[i] + qp[3], window_limit[i] - qp[3]);
+                }
 
                 // 이전 상태 저장 후 업데이트
                 std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
@@ -347,7 +359,7 @@ private:
                 sliders.apply_v(qs_diff);
                 sliders.apply_q(qs);
                 pushers.apply_v(qp_diff);
-                pushers.apply_q(qp);    
+                pushers.apply_q(qp);
             }
         }
 
