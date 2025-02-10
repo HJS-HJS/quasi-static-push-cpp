@@ -163,13 +163,18 @@ public:
      */
     SimulationResult run(const std::vector<float>& u_input) {
 
-        if(u_input.back() > 0.5f && mode < 0){
+        if(u_input.back() >= 0.5f){
             param->update_param();
             if (!(param->phi.array() < 0).any()){
                 mode = 0;
                 viewer.changeDiagramColor(pushers.get_pushers(), "red");
                 viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "purple");
             }
+        }
+        else if(u_input.back() < 0.5f){
+            mode = -1;
+            viewer.changeDiagramColor(pushers.get_pushers(), "pink");
+            viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple");
         }
 
         Eigen::VectorXf transformed_u = applyGripperMovement(u_input);
