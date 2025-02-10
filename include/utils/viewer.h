@@ -31,9 +31,11 @@ private:
         {"green", {0, 255, 0, 255}},
         {"blue", {0, 0, 255, 255}},
         {"yellow", {255, 255, 0, 255}},
+        {"purple", {180, 85, 165, 255}},
         {"white", {255, 255, 255, 255}},
         {"black", {0, 0, 0, 255}},
-        {"pink", {255, 194, 205, 255}}
+        {"pink", {255, 194, 205, 255}},
+        {"lightpurple", {137, 119, 173, 255}},
     };
     std::unordered_map<SDL_Keycode, bool> keyStates;
 
