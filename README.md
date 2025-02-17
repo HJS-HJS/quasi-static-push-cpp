@@ -1,5 +1,32 @@
 # Quasi-Static Push Simulation
-This project provides quasi-static push simulation with Python bindings. It allows users to simulate object pushing and grasping, retrieve simulation states, visualize the environment, and record and replay simulations.
+- This project provides quasi-static push simulation with Python bindings.
+- It allows users to simulate object pushing and grasping, retrieve simulation states, visualize the environment, and record and replay simulations.
+
+<div align="center">
+
+[![Python](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org/downloads/release/python-310/)
+&nbsp;&nbsp;&nbsp;&nbsp;
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+</div>
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="./figure/mode_0.gif" width="320">
+        <br><b>Mode 0: Initial State</b>
+      </td>
+      <td align="center">
+        <img src="./figure/mode_1.gif" width="320">
+        <br><b>Mode 1: Gripper Interacting with Sliders</b>
+      </td>
+      <td align="center">
+        <img src="./figure/mode_2.gif" width="320">
+        <br><b>Mode 2: Gripper Attempting to Grasp</b>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## 1. Overview
 The quasi_static_push module is a physics-based simulation engine that enables object pushing and grasping simulations.
