@@ -134,6 +134,8 @@ public:
             std::get<6>(pusher_input), std::get<7>(pusher_input), std::get<8>(pusher_input), std::get<9>(pusher_input)
         );
 
+        bead = Circle(0., -0.5, 0., 0.025);
+
         param = std::make_shared<ParamFunction>(sliders, pushers, obstacles);
         
         // Initialize QuasiStateSim
@@ -145,9 +147,10 @@ public:
 
         viewer.reset(newtableWidth, newtableHeight, true);
         viewer.addDiagram(sliders.get_sliders(), "blue", false);
-        viewer.addDiagram(pushers.get_pushers(), "pink", true);
-        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "green", false);
-        viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple", true);
+        viewer.addDiagram(pushers.get_pushers(), "red", true);
+        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "aqua", false);
+        // viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "yellow", true);
+        viewer.addDiagram(&bead, "yellow", true);
         
         table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
 
@@ -167,19 +170,18 @@ public:
             param->update_param();
             if (!(param->phi.array() < 0).any()){
                 mode = 0;
-                viewer.changeDiagramColor(pushers.get_pushers(), "red", true);
-                viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "purple", true);
+                viewer.changeDiagramColor(&bead, "yellow", true);
             }
         }
         else if(u_input.back() < 0.5f){
             mode = -1;
-            viewer.changeDiagramColor(pushers.get_pushers(), "pink", true);
-            viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "lightpurple", true);
+            viewer.changeDiagramColor(&bead, "t_yellow", true);
         }
 
         Eigen::VectorXf transformed_u = applyGripperMovement(u_input);
+        Eigen::VectorXf test_u = transformed_u.head<4>();
 
-        simulate_(transformed_u);
+        simulate_(test_u);
         int condition = isDishOut_(); 
         int grasp = grasp_();
 
@@ -244,11 +246,64 @@ public:
         return py_list;  // Python 리스트로 반환
     }
 
+    void applyGripperPosition(const std::vector<float>& position) {
+        pushers.apply_q(position);
+        return;
+    }
+
+    void renderViewer_(bool render_gripper = true) {
+        bead.q[0] = pushers.q[0];
+        bead.q[1] = pushers.q[1];
+        bead.q[2] = pushers.q[2];
+
+        if (!show_closest_point){   
+            viewer.render(render_gripper);
+        }
+        else{
+            std::vector<std::vector<float>> points;
+            std::vector<std::tuple<float, float, float, float>> arrows;
+
+            for (const auto& pusher : pushers) {
+                for (const auto& slider : sliders) {
+                    auto collision_data = pusher->cal_collision_data(*slider);
+                    points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
+                    points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
+
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.1f});
+                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.1f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.1f});
+                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.1f});
+                }
+            }
+            viewer.render(render_gripper, points, arrows);
+        }
+    }
+
+    py::object getImageState() {
+        auto surface = viewer.getRenderedImage();
+        if (!surface) {
+            throw std::runtime_error("Failed to get rendered image!");
+        }
+
+        // SDL_Surface → cv::Mat (4채널 RGBA 또는 BGRA)
+        cv::Mat frame = SDL_SurfaceToMat(surface);
+
+        std::vector<py::ssize_t> shape = {frame.rows, frame.cols, frame.channels()};
+        std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(frame.step[0]), static_cast<py::ssize_t>(frame.elemSize()), 1};
+
+        return py::array_t<uint8_t>(
+            shape,      // shape 정보 전달 (H, W, C)
+            strides,    // strides 정보 전달 (row stride, column stride, element stride)
+            frame.data  // 데이터 포인터
+        );
+    }
+
 private:
     SimulationViewer viewer;
     ObjectSlider sliders;
     ObjectPusher pushers;
     ObjectSlider obstacles;
+    Diagram bead;
     std::shared_ptr<ParamFunction> param;
     std::unique_ptr<QuasiStateSim> sim;
     std::array<float, 2> window_limit;
@@ -277,7 +332,7 @@ private:
         }
     }
 
-    Eigen::MatrixXf applyGripperMovement(const std::vector<float>& u_input){
+    Eigen::VectorXf applyGripperMovement(const std::vector<float>& u_input){
         Eigen::Matrix2f rot_;
         if (gripper_movement == MOVE_XY) {
             rot_ << 0, -1,
@@ -308,10 +363,11 @@ private:
         // 입력 벡터 u_input 변환
         Eigen::VectorXf u = Eigen::Map<const Eigen::VectorXf>(u_input.data(), u_input.size());
 
-        Eigen::VectorXf transformed_u(4);
+        Eigen::VectorXf transformed_u(5);
         transformed_u.head<2>() = rot_ * u.head<2>();  // 회전 적용
         transformed_u(2) = u(2);
         transformed_u(3) = u(3);
+        transformed_u(4) = u(4);
 
         return transformed_u;
     }
@@ -397,45 +453,26 @@ private:
                 pushers.apply_v(qp_diff);
                 pushers.apply_q(qp);
 
-                if ((param->phi.head(finger).array() < 0.015).any() && (param->phi.head(finger).array() != 0).all()){
+                if ((param->phi.head(finger).array() < 0.01).any() && (param->phi.head(finger).array() != 0).all()){
                     return 1;
                 } 
                 else if ((width_ - pushers.q[3]) < 0.5 / frame_rate * 0.9){
                     return -1;
                 }
                 width_ = pushers.q[3];
-                renderViewer_();
             }
+            renderViewer_();
         }
         return 0;
     }
 
     bool isGraspReady(){
-        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.015){
+        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.025){
             return true;
         }
         else{
             return false;
         }
-    }
-
-    py::object getImageState() {
-        auto surface = viewer.getRenderedImage();
-        if (!surface) {
-            throw std::runtime_error("Failed to get rendered image!");
-        }
-
-        // SDL_Surface → cv::Mat (4채널 RGBA 또는 BGRA)
-        cv::Mat frame = SDL_SurfaceToMat(surface);
-
-        std::vector<py::ssize_t> shape = {frame.rows, frame.cols, frame.channels()};
-        std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(frame.step[0]), static_cast<py::ssize_t>(frame.elemSize()), 1};
-
-        return py::array_t<uint8_t>(
-            shape,      // shape 정보 전달 (H, W, C)
-            strides,    // strides 정보 전달 (row stride, column stride, element stride)
-            frame.data  // 데이터 포인터
-        );
     }
 
     void addSlider_(std::string type, std::vector<float> param) {
@@ -495,31 +532,6 @@ private:
             recorder->startRecording();
         }
     }
-
-    void renderViewer_() {
-        if (!show_closest_point){   
-            viewer.render();
-        }
-        else{
-            std::vector<std::vector<float>> points;
-            std::vector<std::tuple<float, float, float, float>> arrows;
-
-            for (const auto& pusher : pushers) {
-                for (const auto& slider : sliders) {
-                    auto collision_data = pusher->cal_collision_data(*slider);
-                    points.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1]});
-                    points.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1]});
-
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->tangentVector(collision_data[0])), 0.1f});
-                    arrows.push_back({pusher->point(collision_data[0])[0], pusher->point(collision_data[0])[1], calculateAngle_(pusher->normalVector(collision_data[0])),  0.1f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->tangentVector(collision_data[1])), 0.1f});
-                    arrows.push_back({slider->point(collision_data[1])[0], slider->point(collision_data[1])[1], calculateAngle_(slider->normalVector(collision_data[1])),  0.1f});
-                }
-            }
-            viewer.render(points, arrows);
-        }
-    }
-
 };
 
 class PyPlayerIterator {
@@ -877,6 +889,9 @@ PYBIND11_MODULE(quasi_static_push, m) {
             py::arg("newtableWidth") = 3.0f,
             py::arg("newtableHeight") = 3.0f)
         .def("run", &PySimulationViewer::run)
+        .def("applyGripperPosition", &PySimulationViewer::applyGripperPosition)
+        .def("renderViewer_", &PySimulationViewer::renderViewer_)
+        .def("getImageState", &PySimulationViewer::getImageState)
         .def("keyboard_input", &PySimulationViewer::keyboard_input);
 
     py::class_<Player>(m, "Player", R"pbdoc(
