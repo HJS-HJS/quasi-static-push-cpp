@@ -31,11 +31,14 @@ private:
         {"green", {0, 255, 0, 255}},
         {"blue", {0, 0, 255, 255}},
         {"yellow", {255, 255, 0, 255}},
+        {"aqua", {0, 255, 255, 255}},
         {"purple", {180, 85, 165, 255}},
         {"white", {255, 255, 255, 255}},
         {"black", {0, 0, 0, 255}},
         {"pink", {255, 194, 205, 255}},
         {"lightpurple", {137, 119, 173, 255}},
+        {"t_red", {255, 0, 0, 150}},
+        {"t_yellow", {255, 255, 0, 150}},
     };
     std::unordered_map<SDL_Keycode, bool> keyStates;
 
@@ -62,7 +65,8 @@ public:
     void changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority = false);
     void reset(float newTableWidth, float newTableHeight, bool newDisplayWindow);
     // void render();
-    void render(const std::vector<std::vector<float>>& points = {}, 
+    void render(bool render_gripper = true,
+                const std::vector<std::vector<float>>& points = {}, 
                 const std::vector<std::tuple<float, float, float, float>>& arrows = {});
     void renderTexture(const Diagram* diagram, SDL_Texture* texture);
     SDL_Surface* getRenderedImage();

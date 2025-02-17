@@ -207,15 +207,17 @@ void SimulationViewer::drawGrid() const {
 }
 
 void SimulationViewer::drawBackground() const {
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_SetRenderDrawColor(renderer, 150, 150, 150, 255);
     int rectX = (screenWidth - tableWidth) / 2;
     int rectY = (screenHeight - tableHeight) / 2;
     SDL_Rect rect = {rectX, rectY, tableWidth, tableHeight};
     SDL_RenderFillRect(renderer, &rect);
 }
 
-void SimulationViewer::render(const std::vector<std::vector<float>>& points, 
-                              const std::vector<std::tuple<float, float, float, float>>& arrows) {
+void SimulationViewer::render(bool render_gripper,
+                              const std::vector<std::vector<float>>& points, 
+                              const std::vector<std::tuple<float, float, float, float>>& arrows
+                              ) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set background to black
     SDL_RenderClear(renderer);
 
@@ -227,9 +229,11 @@ void SimulationViewer::render(const std::vector<std::vector<float>>& points,
             renderTexture(diagram, pair.first);
         }
     }
-    for (const auto& [diagram, pair] : diagramTextures) {
-        if (pair.second) { // priority == false 인 도형
-            renderTexture(diagram, pair.first);
+    if (render_gripper) {
+        for (const auto& [diagram, pair] : diagramTextures) {
+            if (pair.second) { // priority == true 인 도형
+                renderTexture(diagram, pair.first);
+            }
         }
     }
 
