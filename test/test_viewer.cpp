@@ -122,7 +122,7 @@ int main() {
             }
             auto end3 = std::chrono::high_resolution_clock::now();
             // Render diagrams
-            viewer.render(points, arrows);
+            viewer.render(true, points, arrows);
 
             auto end4 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed = end4 - start;
