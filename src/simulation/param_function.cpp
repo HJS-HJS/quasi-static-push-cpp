@@ -61,6 +61,7 @@ void ParamFunction::update_param() {
     int n_slider = sliders.size();
     float _dt = 0.0001;
     auto pusher_dv = pushers.pusher_dv(_dt);
+    std::cout << "[DEBUG] update start " << n_slider << std::endl;
 
     int i = -1;
     for (const auto& sliderPtr : sliders) {
@@ -87,6 +88,7 @@ void ParamFunction::update_param() {
         }
     }
 
+    std::cout << "[DEBUG] update pusher and slider " << std::endl;
     for (auto slider1_it = sliders.begin(); slider1_it != sliders.end(); ++slider1_it) {
         auto& slider1 = **slider1_it;
         auto i_s1 = std::distance(sliders.begin(), slider1_it);
@@ -111,6 +113,7 @@ void ParamFunction::update_param() {
         }
     }
 
+    std::cout << "[DEBUG] update slider and slider " << std::endl;
     Eigen::Matrix2f _rot;
     _rot <<  0, -1,
                 1,  0;
@@ -122,10 +125,12 @@ void ParamFunction::update_param() {
         m_JT.row(2 * i + 1) = rotated_nhat.transpose() * vc_jac.block(2 * i, 0, 2, vc_jac.cols());
     }
 
+    std::cout << "[DEBUG] update Jacobian " << std::endl;
     m_JNS = m_JN.leftCols(3 * n_slider);
     m_JNP = m_JN.rightCols(m_JN.cols() - 3 * n_slider);
     m_JTS = m_JT.leftCols(3 * n_slider);
     m_JTP = m_JT.rightCols(m_JT.cols() - 3 * n_slider);
+    std::cout << "[DEBUG] finished " << std::endl;
 }
 
 bool ParamFunction::is_collision_available(const Diagram& diagram1, const Diagram& diagram2, float threshold) {
