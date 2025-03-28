@@ -62,10 +62,6 @@ void ParamFunction::update_param() {
     float _dt = 0.0001;
     auto pusher_dv = pushers.pusher_dv(_dt);
 
-    std::cout << "[DEBUG] update start sliders: " << n_slider << std::endl;
-    std::cout << "[DEBUG] update start pushers: " << pushers.size() << std::endl;
-    std::cout << "[DEBUG] update start combi: " << combination(n_slider, 2) << std::endl;
-
     int i = -1;
     for (const auto& sliderPtr : sliders) {
         auto& slider = *sliderPtr;
@@ -91,40 +87,30 @@ void ParamFunction::update_param() {
         }
     }
 
-    std::cout << "[DEBUG] update pusher and slider " << std::endl;
     for (auto slider1_it = sliders.begin(); slider1_it != sliders.end(); ++slider1_it) {
         auto& slider1 = **slider1_it;
         auto i_s1 = std::distance(sliders.begin(), slider1_it);
 
         for (auto slider2_it = std::next(slider1_it); slider2_it != sliders.end(); ++slider2_it) {
-            std::cout << "[DEBUG] " << i + 1 << "  " << std::endl;
             auto& slider2 = **slider2_it;
             auto i_s2 = std::distance(sliders.begin(), slider2_it);
-            std::cout << "[DEBUG] " << i_s1 << " " << i_s2 << "  " << std::endl;
             ++i;
 
             if (!is_collision_available(slider1, slider2, threshold)) continue;
 
-            std::cout << "[DEBUG] " << "collision can occur " << std::endl;
             auto ans = slider1.cal_collision_data(slider2);
-            std::cout << "[DEBUG] " << "phi " << i << " to " << phi.size() << std::endl;
             phi(i) = ans[2];
             auto normal_ = slider1.normalVector(ans[0]);
-            std::cout << "[DEBUG] " << "nhat " << i << " to " << nhat.rows() << std::endl;
             nhat.row(i) << normal_[0], normal_[1];
 
             Eigen::MatrixXf slider1_grad = slider1.localVelocityGrad(ans[0], _dt);
             Eigen::MatrixXf slider2_grad = slider2.localVelocityGrad(ans[1], _dt);
 
-            std::cout << "[DEBUG] " << "try " << 2 * i << " " << 3 * i_s1 << " " << std::endl;
-            std::cout << "[DEBUG] " << "try " << vc_jac.rows() << "x" << vc_jac.cols() << std::endl;
             vc_jac.block(2 * i, 3 * i_s1, 2, 3) = slider1_grad.transpose() * -1;
             vc_jac.block(2 * i, 3 * i_s2, 2, 3) = slider2_grad.transpose();
-            std::cout << "[DEBUG] " << "success " << std::endl;
         }
     }
 
-    std::cout << "[DEBUG] update slider and slider " << std::endl;
     Eigen::Matrix2f _rot;
     _rot <<  0, -1,
                 1,  0;
@@ -140,7 +126,6 @@ void ParamFunction::update_param() {
     m_JNP = m_JN.rightCols(m_JN.cols() - 3 * n_slider);
     m_JTS = m_JT.leftCols(3 * n_slider);
     m_JTP = m_JT.rightCols(m_JT.cols() - 3 * n_slider);
-    std::cout << "[DEBUG] finished " << std::endl;
 }
 
 bool ParamFunction::is_collision_available(const Diagram& diagram1, const Diagram& diagram2, float threshold) {
