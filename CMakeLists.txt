@@ -45,11 +45,24 @@ include_directories(${NLOHMANN_JSON_INCLUDE_DIR})
 # Eigen 경로 추가
 include_directories(${CMAKE_SOURCE_DIR}/include /usr/include/eigen3)
 
-# Pybind11 찾기
-execute_process(COMMAND python3 -m pybind11 --includes
-                OUTPUT_VARIABLE PYBIND11_INCLUDE
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
-separate_arguments(PYBIND11_INCLUDE)
+# pybind11 include 경로 정리
+execute_process(
+    COMMAND python3 -m pybind11 --includes
+    OUTPUT_VARIABLE PYBIND11_INCLUDES_RAW
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+separate_arguments(PYBIND11_INCLUDES_RAW)
+
+# -I prefix 제거하고 경로만 추출
+set(PYBIND11_INCLUDE_DIRS "")
+foreach(flag ${PYBIND11_INCLUDES_RAW})
+    if(flag MATCHES "^-I(.+)")
+        list(APPEND PYBIND11_INCLUDE_DIRS "${CMAKE_MATCH_1}")
+    endif()
+endforeach()
+
+# include 디렉토리 추가
+include_directories(${PYBIND11_INCLUDE_DIRS})
 
 # 공통 include 디렉토리
 include_directories(
