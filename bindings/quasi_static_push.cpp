@@ -141,7 +141,7 @@ public:
         // Initialize QuasiStateSim
         sim = std::make_unique<QuasiStateSim>(
             100,
-            0.05,
+            0.001,
             param
         );
 
