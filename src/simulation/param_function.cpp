@@ -103,6 +103,7 @@ void ParamFunction::update_param() {
 
             if (!is_collision_available(slider1, slider2, threshold)) continue;
 
+            std::cout << "[DEBUG] " << "collision can occur " << std::endl;
             auto ans = slider1.cal_collision_data(slider2);
             phi(i) = ans[2];
             auto normal_ = slider1.normalVector(ans[0]);
@@ -111,6 +112,8 @@ void ParamFunction::update_param() {
             Eigen::MatrixXf slider1_grad = slider1.localVelocityGrad(ans[0], _dt);
             Eigen::MatrixXf slider2_grad = slider2.localVelocityGrad(ans[1], _dt);
 
+            std::cout << "[DEBUG] " << "try " << 2 * i << " " << 3 * i_s1 << " " << std::endl;
+            std::cout << "[DEBUG] " << "try " << vc_jac.rows() << "x" << vc_jac.cols() << std::endl;
             vc_jac.block(2 * i, 3 * i_s1, 2, 3) = slider1_grad.transpose() * -1;
             vc_jac.block(2 * i, 3 * i_s2, 2, 3) = slider2_grad.transpose();
             std::cout << "[DEBUG] " << "success " << std::endl;
