@@ -85,6 +85,7 @@ void ParamFunction::update_param() {
 
             vc_jac.block(2 * i, 3 * i_s, 2, 3) = slider_grad.transpose() * -1;
             vc_jac.block(2 * i, 3 * n_slider, 2, 4) = pusher_grad.transpose();
+            std::cout << "[DEBUG] " << i << " update pusher and slider " << std::endl;
         }
     }
 
@@ -110,6 +111,7 @@ void ParamFunction::update_param() {
 
             vc_jac.block(2 * i, 3 * i_s1, 2, 3) = slider1_grad.transpose() * -1;
             vc_jac.block(2 * i, 3 * i_s2, 2, 3) = slider2_grad.transpose();
+            std::cout << "[DEBUG] " << i << " update slider and slider " << std::endl;
         }
     }
 
@@ -125,7 +127,6 @@ void ParamFunction::update_param() {
         m_JT.row(2 * i + 1) = rotated_nhat.transpose() * vc_jac.block(2 * i, 0, 2, vc_jac.cols());
     }
 
-    std::cout << "[DEBUG] update Jacobian " << std::endl;
     m_JNS = m_JN.leftCols(3 * n_slider);
     m_JNP = m_JN.rightCols(m_JN.cols() - 3 * n_slider);
     m_JTS = m_JT.leftCols(3 * n_slider);
