@@ -69,6 +69,7 @@ void ParamFunction::update_param() {
         size_t i_s = std::distance(sliders.begin(), std::find(sliders.begin(), sliders.end(), sliderPtr));
 
         for (const auto& pusherPtr : pushers) {
+            std::cout << "[DEBUG] " << i + 1 << " update pusher and slider " << std::endl;
             auto& pusher = *pusherPtr;
             size_t i_p = std::distance(pushers.begin(), std::find(pushers.begin(), pushers.end(), pusherPtr));
             ++i;
@@ -85,7 +86,6 @@ void ParamFunction::update_param() {
 
             vc_jac.block(2 * i, 3 * i_s, 2, 3) = slider_grad.transpose() * -1;
             vc_jac.block(2 * i, 3 * n_slider, 2, 4) = pusher_grad.transpose();
-            std::cout << "[DEBUG] " << i << " update pusher and slider " << std::endl;
         }
     }
 
@@ -95,8 +95,10 @@ void ParamFunction::update_param() {
         auto i_s1 = std::distance(sliders.begin(), slider1_it);
 
         for (auto slider2_it = std::next(slider1_it); slider2_it != sliders.end(); ++slider2_it) {
+            std::cout << "[DEBUG] " << i + 1 << "  " << std::endl;
             auto& slider2 = **slider2_it;
             auto i_s2 = std::distance(sliders.begin(), slider2_it);
+            std::cout << "[DEBUG] " << i_s1 << " " << i_s2 << "  " << std::endl;
             ++i;
 
             if (!is_collision_available(slider1, slider2, threshold)) continue;
@@ -111,7 +113,7 @@ void ParamFunction::update_param() {
 
             vc_jac.block(2 * i, 3 * i_s1, 2, 3) = slider1_grad.transpose() * -1;
             vc_jac.block(2 * i, 3 * i_s2, 2, 3) = slider2_grad.transpose();
-            std::cout << "[DEBUG] " << i << " update slider and slider " << std::endl;
+            std::cout << "[DEBUG] " << "success " << std::endl;
         }
     }
 
