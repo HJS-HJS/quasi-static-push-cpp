@@ -150,7 +150,14 @@ bool ParamFunction::is_collision_available(const Diagram& diagram1, const Diagra
 int ParamFunction::combination(int n, int r) {
     if (n < r) return 0;
     else if (n == r) return 1;
-    return static_cast<int>(std::tgamma(n) / (std::tgamma(r) * std::tgamma(n - r)));
+    int ans = 1;
+    for(int i = 0; i < r; i++){
+        ans *= (n - i);
+    }
+    for(int i = 0; i < r; i++){
+        ans /= (i + 1);
+    }
+    return ans;
 }
 
 std::vector<float> ParamFunction::q() {
