@@ -53,9 +53,15 @@ void SimulationViewer::setGridSpacing(float spacing) {
     gridSpacingMeters = spacing;
 }
 
-void SimulationViewer::renderDiagram(const Diagram* diagram, const SDL_Color& color, bool priority) {
+void SimulationViewer::renderDiagram(const Diagram* diagram, const SDL_Color& color, bool priority, bool pattern) {
+    auto it = diagramTextures.find(diagram);
+    if (it != diagramTextures.end()) {
+        SDL_DestroyTexture(it->second.first);
+        diagramTextures.erase(it);
+    }
+
     float rotation = diagram->q[2];
-    int point_size = 2000;
+    int point_size = 1000;
 
     const_cast<Diagram*>(diagram)->q[2] = 0;
     auto points = diagram->points(point_size, 0, 2 * M_PI);
@@ -89,40 +95,52 @@ void SimulationViewer::renderDiagram(const Diagram* diagram, const SDL_Color& co
     // Render the filled polygon
     filledPolygonRGBA(renderer, x_points.data(), y_points.data(), x_points.size(), color.r, color.g, color.b, color.a);
 
-    // Add a white cross in the center with thickness
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // White color
-    int center_x = static_cast<int>(width / 2);
-    int center_y = static_cast<int>(height / 2);
-    int thickness = 3; // Thickness of the cross
+    if (pattern){
+        std::vector<float> scale_factors = {0.8f, 0.65f, 0.5f, 0.35f, 0.2f}; 
 
-    // Horizontal bar of the cross
-    SDL_Rect horizontal_bar = {center_x - 10, center_y - thickness / 2, 20, thickness};
-    SDL_RenderFillRect(renderer, &horizontal_bar);
+        for (float scale : scale_factors) {
+            auto inner_points = diagram->points(point_size, 0, 2 * M_PI);
+            std::vector<Sint16> inner_x_points, inner_y_points;
+            
+            for (auto& point : points) {
+                float point_x = point[0] * scale;
+                float point_y = point[1] * scale;
+                inner_x_points.push_back(static_cast<Sint16>(point_x * unit + width / 2));
+                inner_y_points.push_back(static_cast<Sint16>(point_y * unit + height / 2));
+            }
 
-    // Vertical bar of the cross
-    SDL_Rect vertical_bar = {center_x - thickness / 2, center_y - 10, thickness, 20};
-    SDL_RenderFillRect(renderer, &vertical_bar);
+            filledPolygonRGBA(renderer, inner_x_points.data(), inner_y_points.data(), inner_x_points.size(), 255, 255, 255, 100);
+        }
+
+        // Add inner gradient color pattern
+        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a); 
+
+        int center_x = static_cast<int>(width / 2);
+        int center_y = static_cast<int>(height / 2);
+
+        filledCircleRGBA(renderer, center_x, center_y, 6, color.r, color.g, color.b, 255);
+    }
 
     SDL_SetRenderTarget(renderer, nullptr);
     diagramTextures[diagram] = std::make_pair(texture, priority);
 }
 
-void SimulationViewer::addDiagram(const Diagram* diagram, const std::string& colorName, bool priority) {
+void SimulationViewer::addDiagram(const Diagram* diagram, const std::string& colorName, bool priority, bool pattern) {
     if (colorMap.find(colorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + colorName);
     }
     SDL_Color color = colorMap[colorName];
-    renderDiagram(diagram, color, priority);
+    renderDiagram(diagram, color, priority, pattern);
 }
 
 
-void SimulationViewer::addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName, bool priority) {
+void SimulationViewer::addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName, bool priority, bool pattern) {
     if (colorMap.find(colorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + colorName);
     }
     SDL_Color color = colorMap[colorName];
     for (const auto& diagram : diagrams) {
-        renderDiagram(diagram.get(), color, priority);
+        renderDiagram(diagram.get(), color, priority, pattern);
     }
 }
 
@@ -134,7 +152,7 @@ void SimulationViewer::removeDiagram(const Diagram* diagram) {
     }
     currentDiagrams.erase(diagram);
 }
-void SimulationViewer::changeDiagramColor(const Diagram* diagram, const std::string& newColorName, bool priority) {
+void SimulationViewer::changeDiagramColor(const Diagram* diagram, const std::string& newColorName, bool priority, bool pattern) {
     if (colorMap.find(newColorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + newColorName);
     }
@@ -146,9 +164,9 @@ void SimulationViewer::changeDiagramColor(const Diagram* diagram, const std::str
     }
 
     SDL_Color newColor = colorMap[newColorName];
-    renderDiagram(diagram, newColor, priority);
+    renderDiagram(diagram, newColor, priority, pattern);
 }
-void SimulationViewer::changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority) {
+void SimulationViewer::changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority, bool pattern) {
     if (colorMap.find(newColorName) == colorMap.end()) {
         throw std::invalid_argument("Color name not found in predefined colors: " + newColorName);
     }
@@ -160,7 +178,7 @@ void SimulationViewer::changeDiagramColor(const std::vector<std::unique_ptr<Diag
         }
 
         SDL_Color newColor = colorMap[newColorName];
-        renderDiagram(diagram.get(), newColor, priority);
+        renderDiagram(diagram.get(), newColor, priority, pattern);
     }
 }
 

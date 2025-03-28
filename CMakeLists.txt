@@ -34,6 +34,7 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${PYBIND11_INCLUDE}
     ${BINDINGS_DIR}
+    ${SDL2_INCLUDE_DIRS}
 )
 
 # 모든 소스 파일 한 번에 검색
@@ -44,7 +45,12 @@ file(GLOB_RECURSE PYBINDINGS_SRC ${BINDINGS_DIR}/*.cpp)
 # 공통 라이브러리 빌드 (정적 라이브러리, -fPIC 적용)
 add_library(quasi_static_lib STATIC ${SOURCES})
 target_compile_options(quasi_static_lib PRIVATE -fPIC)
-target_link_libraries(quasi_static_lib PUBLIC SDL2::SDL2 ${SDL2_GFX_LIB} ${OpenCV_LIBS})
+target_link_libraries(quasi_static_lib PUBLIC
+    ${SDL2_LIBRARIES}
+    ${SDL2_GFX_LIB}
+    ${OpenCV_LIBS}
+)
+
 
 
 # 함수: 테스트 실행 파일 빌드

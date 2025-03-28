@@ -40,6 +40,7 @@ viewer = SimulationViewer(
 viewer.reset()
 
 slider_inputs = [
+    ("circle", [-0.8, -0.8, 0.0, 0.5]),
     ("circle", [0.0, -0.1, 0.0, 0.13]),
     ("circle", [0.2, 0.2, 0.0, 0.13]),
     ("circle", [-0.2, 0.2, 0.0, 0.13]),

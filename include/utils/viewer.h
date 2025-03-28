@@ -27,18 +27,19 @@ private:
 
     // Predefined colors
     std::unordered_map<std::string, SDL_Color> colorMap = {
-        {"red", {255, 0, 0, 255}},
-        {"green", {0, 255, 0, 255}},
-        {"blue", {0, 0, 255, 255}},
-        {"yellow", {255, 255, 0, 255}},
-        {"aqua", {0, 255, 255, 255}},
+        {"red", {255, 5, 5, 255}},
+        {"green", {5, 255, 5, 255}},
+        {"blue", {5, 5, 255, 255}},
+        {"magenta", {255, 5, 255, 255}},
+        {"yellow", {255, 255, 5, 255}},
+        {"aqua", {5, 255, 255, 255}},
         {"purple", {180, 85, 165, 255}},
         {"white", {255, 255, 255, 255}},
         {"black", {0, 0, 0, 255}},
         {"pink", {255, 194, 205, 255}},
         {"lightpurple", {137, 119, 173, 255}},
-        {"t_red", {255, 0, 0, 150}},
-        {"t_yellow", {255, 255, 0, 150}},
+        {"t_red", {255, 5, 5, 150}},
+        {"t_yellow", {255, 255, 5, 150}},
     };
     std::unordered_map<SDL_Keycode, bool> keyStates;
 
@@ -56,13 +57,13 @@ public:
     void setGridVisibility(bool visibility);
     void setGridSpacing(float spacing);
     // Add a single diagram
-    void addDiagram(const Diagram* diagram, const std::string& colorName, bool priority);
+    void addDiagram(const Diagram* diagram, const std::string& colorName, bool priority, bool pattern = false);
     // Add multiple diagrams
-    void addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName, bool priority);
-    void renderDiagram(const Diagram* diagram, const SDL_Color& color, bool priority);
+    void addDiagram(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& colorName, bool priority, bool pattern = false);
+    void renderDiagram(const Diagram* diagram, const SDL_Color& color, bool priority, bool pattern = false);
     void removeDiagram(const Diagram* diagram);
-    void changeDiagramColor(const Diagram* diagram, const std::string& newColorName, bool priority = false);
-    void changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority = false);
+    void changeDiagramColor(const Diagram* diagram, const std::string& newColorName, bool priority = false, bool pattern = false);
+    void changeDiagramColor(const std::vector<std::unique_ptr<Diagram>>& diagrams, const std::string& newColorName, bool priority = false, bool pattern = false);
     void reset(float newTableWidth, float newTableHeight, bool newDisplayWindow);
     // void render();
     void render(bool render_gripper = true,

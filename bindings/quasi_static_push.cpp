@@ -134,7 +134,7 @@ public:
             std::get<6>(pusher_input), std::get<7>(pusher_input), std::get<8>(pusher_input), std::get<9>(pusher_input)
         );
 
-        bead = Circle(0., -0.5, 0., 0.025);
+        bead = Circle(0., -0.5, 0., 0.015);
 
         param = std::make_shared<ParamFunction>(sliders, pushers, obstacles);
         
@@ -148,9 +148,9 @@ public:
         viewer.reset(newtableWidth, newtableHeight, true);
         viewer.addDiagram(sliders.get_sliders(), "blue", false);
         viewer.addDiagram(pushers.get_pushers(), "red", true);
-        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "aqua", false);
+        viewer.changeDiagramColor(sliders.get_sliders().begin()->get(), "magenta", false, true);
         // viewer.changeDiagramColor((pushers.get_pushers().end() - 1)->get(), "yellow", true);
-        viewer.addDiagram(&bead, "yellow", true);
+        viewer.addDiagram(&bead, "yellow", true, true);
         
         table_limit = std::array<float, 2>{newtableWidth / 2, newtableHeight / 2};
 
@@ -170,18 +170,23 @@ public:
             param->update_param();
             if (!(param->phi.array() < 0).any()){
                 mode = 0;
-                viewer.changeDiagramColor(&bead, "yellow", true);
+                viewer.changeDiagramColor(&bead, "yellow", true, true);
             }
         }
         else if(u_input.back() < 0.5f){
             mode = -1;
-            viewer.changeDiagramColor(&bead, "t_yellow", true);
+            viewer.changeDiagramColor(&bead, "t_yellow", true, true);
         }
 
         Eigen::VectorXf transformed_u = applyGripperMovement(u_input);
         Eigen::VectorXf test_u = transformed_u.head<4>();
 
         simulate_(test_u);
+
+        py::object pusher_state_ = getPusherState(pushers.q);
+        py::object slider_state_ = getSliderState(sliders.get_status());
+        py::object image_state_  = getImageState();
+
         int condition = isDishOut_(); 
         int grasp = grasp_();
 
@@ -191,13 +196,11 @@ public:
         if (condition >= 0) {
             done |= DONE_FALL_OUT;
             reasons.push_back("DONE_FALL_OUT");
-            // viewer.removeDiagram(sliders[condition]);
             sliders.remove(condition);
         }
         if (grasp > 0) {
             done |= DONE_GRASP_SUCCESS;
             reasons.push_back("DONE_GRASP_SUCCESS");
-            // viewer.removeDiagram(sliders[0]);
             sliders.remove(0);
         }
         else if (grasp < 0) {
@@ -216,9 +219,9 @@ public:
             done,
             reasons,
             mode,
-            getImageState(),
-            getPusherState(pushers.q),
-            getSliderState(sliders.get_status())
+            image_state_,
+            pusher_state_,
+            slider_state_
         };
     }
 
@@ -287,6 +290,7 @@ public:
 
         // SDL_Surface → cv::Mat (4채널 RGBA 또는 BGRA)
         cv::Mat frame = SDL_SurfaceToMat(surface);
+        SDL_FreeSurface(surface);
 
         std::vector<py::ssize_t> shape = {frame.rows, frame.cols, frame.channels()};
         std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(frame.step[0]), static_cast<py::ssize_t>(frame.elemSize()), 1};
@@ -421,6 +425,9 @@ private:
                 sliders.apply_q(qs);
                 pushers.apply_v(qp_diff);
                 pushers.apply_q(qp);
+                if(isGraspReady()){
+                    break;
+                }
             }
         }
 
@@ -467,7 +474,7 @@ private:
     }
 
     bool isGraspReady(){
-        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.025){
+        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.015){
             return true;
         }
         else{
@@ -776,9 +783,11 @@ PYBIND11_MODULE(quasi_static_push, m) {
         -------
         - MOVE_XY (0): Move in XY-plane without rotation.
         - MOVE_TO_TARGET (1): Rotate and move towards a specified target.
+        - MOVE_FORWARD (2): Move forward to gripper facing direction.
     )pbdoc")
         .value("MOVE_XY", MOVE_XY)
         .value("MOVE_TO_TARGET", MOVE_TO_TARGET)
+        .value("MOVE_FORWARD", MOVE_FORWARD)
         .export_values();
 
     py::class_<SimulationResult>(m, "SimulationResult", R"pbdoc(
