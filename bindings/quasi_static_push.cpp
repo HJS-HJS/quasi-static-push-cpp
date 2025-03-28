@@ -135,6 +135,8 @@ public:
         );
 
         bead = Circle(0., -0.5, 0., 0.015);
+
+        param = std::make_shared<ParamFunction>(sliders, pushers, obstacles);
         
         // Initialize QuasiStateSim
         sim = std::make_unique<QuasiStateSim>(
@@ -154,8 +156,6 @@ public:
 
         stopRecording();
         startRecording();
-        
-        param = std::make_shared<ParamFunction>(sliders, pushers, obstacles);
     }
 
     /**
