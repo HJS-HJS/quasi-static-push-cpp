@@ -19,6 +19,29 @@ find_package(SDL2 REQUIRED)
 find_library(SDL2_GFX_LIB SDL2_gfx)
 find_package(OpenCV REQUIRED)
 
+# NLOHMANN 경로 추가
+# 기본적으로 external 폴더를 fallback 경로로 둠
+set(NLOHMANN_JSON_FALLBACK_DIR "${CMAKE_SOURCE_DIR}/external")
+
+# 시스템에 설치된 nlohmann/json.hpp 찾기
+find_path(NLOHMANN_JSON_INCLUDE_DIR
+    NAMES nlohmann/json.hpp
+    PATH_SUFFIXES include
+    DOC "Path to nlohmann/json.hpp"
+)
+
+# 못 찾았으면 fallback 경로 사용
+if(NLOHMANN_JSON_INCLUDE_DIR)
+    message(STATUS "Found nlohmann/json.hpp at ${NLOHMANN_JSON_INCLUDE_DIR}")
+else()
+    set(NLOHMANN_JSON_INCLUDE_DIR ${NLOHMANN_JSON_FALLBACK_DIR})
+    message(WARNING "nlohmann/json.hpp not found in system. Using fallback at ${NLOHMANN_JSON_INCLUDE_DIR}")
+endif()
+
+# include path 추가
+include_directories(${NLOHMANN_JSON_INCLUDE_DIR})
+
+
 # Eigen 경로 추가
 include_directories(${CMAKE_SOURCE_DIR}/include /usr/include/eigen3)
 
@@ -50,7 +73,6 @@ target_link_libraries(quasi_static_lib PUBLIC
     ${SDL2_GFX_LIB}
     ${OpenCV_LIBS}
 )
-
 
 
 # 함수: 테스트 실행 파일 빌드
