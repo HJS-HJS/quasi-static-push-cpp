@@ -69,7 +69,6 @@ void ParamFunction::update_param() {
         size_t i_s = std::distance(sliders.begin(), std::find(sliders.begin(), sliders.end(), sliderPtr));
 
         for (const auto& pusherPtr : pushers) {
-            std::cout << "[DEBUG] " << i + 1 << " update pusher and slider " << std::endl;
             auto& pusher = *pusherPtr;
             size_t i_p = std::distance(pushers.begin(), std::find(pushers.begin(), pushers.end(), pusherPtr));
             ++i;
@@ -105,8 +104,10 @@ void ParamFunction::update_param() {
 
             std::cout << "[DEBUG] " << "collision can occur " << std::endl;
             auto ans = slider1.cal_collision_data(slider2);
+            std::cout << "[DEBUG] " << "phi " << i << "to " << phi.size() << << std::endl;
             phi(i) = ans[2];
             auto normal_ = slider1.normalVector(ans[0]);
+            std::cout << "[DEBUG] " << "nhat " << i << "to " << nhat.rows() << << std::endl;
             nhat.row(i) << normal_[0], normal_[1];
 
             Eigen::MatrixXf slider1_grad = slider1.localVelocityGrad(ans[0], _dt);
