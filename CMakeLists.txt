@@ -21,7 +21,7 @@ find_package(OpenCV REQUIRED)
 
 # NLOHMANN 경로 추가
 # 기본적으로 external 폴더를 fallback 경로로 둠
-set(NLOHMANN_JSON_FALLBACK_DIR "${CMAKE_SOURCE_DIR}/external")
+set(NLOHMANN_JSON_FALLBACK_DIR "${CMAKE_SOURCE_DIR}/external/nlohmann")
 
 # 시스템에 설치된 nlohmann/json.hpp 찾기
 find_path(NLOHMANN_JSON_INCLUDE_DIR
