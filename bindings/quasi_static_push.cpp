@@ -344,7 +344,7 @@ private:
         }
         else if (gripper_movement == MOVE_TO_TARGET) {
             std::vector<float> v_(2);
-            std::transform(pushers.q.begin(), pushers.q.begin()+2, sliders[0]->q.begin(), v_.begin(), std::minus<float>());
+            std::transform(pushers.q.data(), pushers.q.data() + 2, sliders[0]->q.data(), v_.data(), std::minus<float>());
 
             float angle_ = std::atan2(v_[1], v_[0]) + M_PI / 2;
             float cos_r = std::cos(angle_);
