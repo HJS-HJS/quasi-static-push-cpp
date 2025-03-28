@@ -53,7 +53,22 @@ Follow these steps to generate the shared library for Python.
     sudo apt-get install libsdl2-dev libsdl2-gfx-dev libopencv-dev -y
     ```
 
-3. **Build Process**
+    - install nlohmann
+    ```bash
+    sudo apt install nlohmann-json-dev
+    ```
+    - if you cant install nlohmann
+    ```bash
+    mkdir -p external/nlohmann
+    curl -L https://raw.githubusercontent.com/nlohmann/json/develop/single_include/nlohmann/json.hpp -o external/nlohmann/json.hpp
+    ```
+
+3. **Install the python libraries**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Build Process**
     ```bash
     mkdir -p build
     cd build
