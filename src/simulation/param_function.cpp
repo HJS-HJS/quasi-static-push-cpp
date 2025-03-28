@@ -61,7 +61,10 @@ void ParamFunction::update_param() {
     int n_slider = sliders.size();
     float _dt = 0.0001;
     auto pusher_dv = pushers.pusher_dv(_dt);
-    std::cout << "[DEBUG] update start " << n_slider << std::endl;
+
+    std::cout << "[DEBUG] update start sliders: " << n_slider << std::endl;
+    std::cout << "[DEBUG] update start pushers: " << pushers.size() << std::endl;
+    std::cout << "[DEBUG] update start combi: " << combination(n_slider, 2) << std::endl;
 
     int i = -1;
     for (const auto& sliderPtr : sliders) {
