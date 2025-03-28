@@ -216,15 +216,14 @@ For more details, see the [LICENSE](./LICENSE) file.
 ## 6. Debug
 ### ssh OpenGL problem
 - case
-```bash
-X Error of failed request:  BadAlloc (insufficient resources for operation)
-  Major opcode of failed request:  152 (GLX)
-  Minor opcode of failed request:  5 (X_GLXMakeCurrent)
-  Serial number of failed request:  0
-  Current serial number in output stream:  105
-```
-
+  ```bash
+  X Error of failed request:  BadAlloc (insufficient resources for operation)
+    Major opcode of failed request:  152 (GLX)
+    Minor opcode of failed request:  5 (X_GLXMakeCurrent)
+    Serial number of failed request:  0
+    Current serial number in output stream:  105
+  ```
 - solve
-```bash
-export SDL_VIDEODRIVER=dummy
-```
+  ```bash
+  export SDL_VIDEODRIVER=dummy
+  ```
