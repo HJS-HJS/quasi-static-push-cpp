@@ -104,10 +104,10 @@ void ParamFunction::update_param() {
 
             std::cout << "[DEBUG] " << "collision can occur " << std::endl;
             auto ans = slider1.cal_collision_data(slider2);
-            std::cout << "[DEBUG] " << "phi " << i << "to " << phi.size() << << std::endl;
+            std::cout << "[DEBUG] " << "phi " << i << "to " << phi.size() << std::endl;
             phi(i) = ans[2];
             auto normal_ = slider1.normalVector(ans[0]);
-            std::cout << "[DEBUG] " << "nhat " << i << "to " << nhat.rows() << << std::endl;
+            std::cout << "[DEBUG] " << "nhat " << i << "to " << nhat.rows() << std::endl;
             nhat.row(i) << normal_[0], normal_[1];
 
             Eigen::MatrixXf slider1_grad = slider1.localVelocityGrad(ans[0], _dt);
