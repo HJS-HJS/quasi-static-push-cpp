@@ -438,6 +438,38 @@ private:
         if (mode == 0 && isGraspReady()){
             mode = 1;
             Eigen::VectorXf transformed_u_(4);
+            
+            // move to target
+            std::vector<float> v_(2);
+            std::transform(sliders[0]->q.data(), sliders[0]->q.data() + 2, pushers.q.data(), v_.data(), std::minus<float>());
+            float dist_ = std::hypot(v_[0], v_[1]);
+
+            while (dist_ > 0.002) {
+                param->update_param();
+                
+                transformed_u_ << v_[0] / dist_ / 10, v_[1] / dist_ / 10, 0.0f, 0.0f;
+                auto ans = sim->run(transformed_u_ / frame_rate, false);
+
+                // 결과 가져오기
+                std::vector<float> qs = std::get<0>(ans);
+                std::vector<float> qp = std::get<1>(ans);
+
+                // 이전 상태 저장 후 업데이트
+                std::vector<float> qs_diff = substractVectors_(qs, sliders.get_q());
+                std::vector<float> qp_diff = substractVectors_(qp, pushers.q);
+
+                // 새로운 상태 적용
+                sliders.apply_v(qs_diff);
+                sliders.apply_q(qs);
+                pushers.apply_v(qp_diff);
+                pushers.apply_q(qp);
+
+                std::transform(sliders[0]->q.data(), sliders[0]->q.data() + 2, pushers.q.data(), v_.data(), std::minus<float>());
+                
+                dist_ = std::hypot(v_[0], v_[1]);
+            }
+
+            // grasp
             transformed_u_ << 0.0f, 0.0f, 0.0f, -0.5f;
             float width_ = pushers.q[3];
             int finger = pushers.size();
@@ -474,7 +506,7 @@ private:
     }
 
     bool isGraspReady(){
-        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.015){
+        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.04){
             return true;
         }
         else{
