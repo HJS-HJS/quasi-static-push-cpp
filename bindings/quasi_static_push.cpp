@@ -187,8 +187,8 @@ public:
         py::object slider_state_ = getSliderState(sliders.get_status());
         py::object image_state_  = getImageState();
 
-        int condition = isDishOut_(); 
         int grasp = grasp_();
+        int condition = isDishOut_(); 
 
         int done = DONE_NONE;
         std::vector<std::string> reasons;
@@ -444,7 +444,9 @@ private:
             std::transform(sliders[0]->q.data(), sliders[0]->q.data() + 2, pushers.q.data(), v_.data(), std::minus<float>());
             float dist_ = std::hypot(v_[0], v_[1]);
 
-            while (dist_ > 0.002) {
+            int count = 0;
+
+            while ((dist_ > 0.002) && (count < 200)) {
                 param->update_param();
                 
                 transformed_u_ << v_[0] / dist_ / 10, v_[1] / dist_ / 10, 0.0f, 0.0f;
@@ -467,6 +469,7 @@ private:
                 std::transform(sliders[0]->q.data(), sliders[0]->q.data() + 2, pushers.q.data(), v_.data(), std::minus<float>());
                 
                 dist_ = std::hypot(v_[0], v_[1]);
+                count += 1;
             }
 
             // grasp
