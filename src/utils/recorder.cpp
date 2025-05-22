@@ -46,13 +46,13 @@ void Recorder::startRecording() {
     videoWriter.open(videoFileName, fourcc, fps, cv::Size(width, height), true);
 
     if (!videoWriter.isOpened()) {
-        // std::cerr << "[Recorder] ❌ Failed to open video file for recording!" << std::endl;
+        // std::cerr << "[Recorder] Failed to open video file for recording!" << std::endl;
         return;
     }
 
     recording = true;
     frameCount = 0;
-    // std::cout << "[Recorder] 🎥 Recording started: " << videoFileName << std::endl;
+    // std::cout << "[Recorder] Recording started: " << videoFileName << std::endl;
 }
 
 void Recorder::saveFrame(const cv::Mat& frame, 
@@ -65,7 +65,7 @@ void Recorder::saveFrame(const cv::Mat& frame,
     if (!recording || !videoWriter.isOpened()) return;
 
     if (frame.empty()) {
-        std::cerr << "[Recorder] ❌ Empty frame detected at frame " << frameCount << std::endl;
+        std::cerr << "[Recorder] Empty frame detected at frame " << frameCount << std::endl;
         return;
     }
 
@@ -78,7 +78,7 @@ void Recorder::saveFrame(const cv::Mat& frame,
     saveMetadata(frameCount, done, reasons, mode, pusher, sliders, action);
     frameCount++;
 
-    // std::cout << "[Recorder] 📸 Frame " << frameCount << " saved." << std::endl;
+    // std::cout << "[Recorder] Frame " << frameCount << " saved." << std::endl;
 }
 
 void Recorder::saveMetadata(int frameIndex, 
@@ -110,24 +110,57 @@ void Recorder::stopRecording() {
     recording = false;
 
     if (frameCount <= 1) {
-        // std::cout << "[Recorder] ⚠ No frames recorded. Deleting video & metadata files." << std::endl;
         if (fs::exists(videoFileName)) fs::remove(videoFileName);
         if (fs::exists(metadataFileName)) fs::remove(metadataFileName);
         return;
     }
-
-    // checkVideoIntegrity();
 }
 
-void Recorder::checkVideoIntegrity() {
-    if (!fs::exists(videoFileName)) {
-        return;
+bool Recorder::renameSavedFiles(const std::string& currentBaseName,
+                                const std::string& newBaseName,
+                                bool appendOldNameToNew) {
+    std::string baseName = currentBaseName;
+
+    // 🔍 currentBaseName이 비어 있으면, 가장 최근에 저장된 .mp4 파일 이름을 찾는다
+    std::string currentVideoFile;
+    std::string currentJsonFile;
+    if (baseName.empty()) {
+        stopRecording();
+        currentVideoFile = videoFileName;
+        currentJsonFile = metadataFileName;
+        baseName = fs::path(videoFileName).stem().string();
+    }
+    else{
+        currentVideoFile = saveDirectory + "/" + baseName + ".mp4";
+        currentJsonFile = saveDirectory + "/" + baseName + ".json";
     }
 
-    long fileSize = fs::file_size(videoFileName);
-    std::cout << "[Recorder] ✅ Final video file size: " << fileSize << " bytes" << std::endl;
 
-    std::string command = "ffmpeg -i " + videoFileName + " -hide_banner";
-    std::cout << "[Recorder] Running FFmpeg check:\n" << command << std::endl;
-    std::system(command.c_str());
+    int waited = 0;
+    while ((!fs::exists(videoFileName) || !fs::exists(metadataFileName)) && waited < 1000) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        waited += 10;
+    }
+
+    if (!fs::exists(currentVideoFile) || !fs::exists(currentJsonFile)) {
+        std::cerr << "[Recorder] ⚠ File(s) not found: "
+                  << currentVideoFile << " or " << currentJsonFile << std::endl;
+        return false;
+    }
+
+    std::string finalBaseName = appendOldNameToNew
+        ? newBaseName + "_" + baseName
+        : newBaseName;
+
+    std::string newVideoFile = saveDirectory + "/" + finalBaseName + ".mp4";
+    std::string newJsonFile = saveDirectory + "/" + finalBaseName + ".json";
+
+    try {
+        fs::rename(currentVideoFile, newVideoFile);
+        fs::rename(currentJsonFile, newJsonFile);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "[Recorder] Rename failed: " << e.what() << std::endl;
+        return false;
+    }
 }

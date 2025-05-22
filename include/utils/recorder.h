@@ -3,6 +3,7 @@
 
 #include <opencv2/opencv.hpp>
 #include <string>
+#include <regex>
 #include <vector>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -31,6 +32,9 @@ public:
                    const std::vector<float>& action
                    );
     void stopRecording();
+    bool renameSavedFiles(const std::string& currentBaseName,
+                          const std::string& newBaseName,
+                          bool appendOldNameToNew);
 
 private:
     std::string saveDirectory;
@@ -56,7 +60,6 @@ private:
                       const std::vector<std::vector<float>>& sliders,
                       const std::vector<float>& action
                       );
-    void checkVideoIntegrity();
 };
 
 #endif // RECORDER_H
