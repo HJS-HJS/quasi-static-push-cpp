@@ -72,7 +72,7 @@ Follow these steps to generate the shared library for Python.
     ```bash
     mkdir -p build
     cd build
-    cmake ..
+    cmake -DCMAKE_BUILD_TYPE=Release ..
     make -j$(nproc)
     ```
 

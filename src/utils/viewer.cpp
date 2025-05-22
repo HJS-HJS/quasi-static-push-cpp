@@ -236,30 +236,30 @@ void SimulationViewer::render(bool render_gripper,
                               const std::vector<std::vector<float>>& points, 
                               const std::vector<std::tuple<float, float, float, float>>& arrows
                               ) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set background to black
-    SDL_RenderClear(renderer);
+    if (displayWindow) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Set background to black
+        SDL_RenderClear(renderer);
 
-    drawBackground();
-    drawGrid();
-    
-    for (const auto& [diagram, pair] : diagramTextures) {
-        if (!pair.second) { // priority == false 인 도형
-            renderTexture(diagram, pair.first);
-        }
-    }
-    if (render_gripper) {
+        drawBackground();
+        drawGrid();
+        
         for (const auto& [diagram, pair] : diagramTextures) {
-            if (pair.second) { // priority == true 인 도형
+            if (!pair.second) { // priority == false 인 도형
                 renderTexture(diagram, pair.first);
             }
         }
-    }
+        if (render_gripper) {
+            for (const auto& [diagram, pair] : diagramTextures) {
+                if (pair.second) { // priority == true 인 도형
+                    renderTexture(diagram, pair.first);
+                }
+            }
+        }
 
-    // Draw points and arrows
-    drawPoints(points, "green", 10);
-    drawArrows(arrows, "yellow", 5);
+        // Draw points and arrows
+        drawPoints(points, "green", 10);
+        drawArrows(arrows, "yellow", 5);
 
-    if (displayWindow) {
         SDL_RenderPresent(renderer);
     }
 }

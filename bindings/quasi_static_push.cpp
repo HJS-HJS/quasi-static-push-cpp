@@ -509,7 +509,7 @@ private:
     }
 
     bool isGraspReady(){
-        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.04){
+        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.02){
             return true;
         }
         else{
@@ -521,6 +521,8 @@ private:
         if (type == "circle") sliders.add(std::make_unique<Circle>(param[0], param[1], param[2], param[3]));
         else if (type == "ellipse") sliders.add(std::make_unique<Ellipse>(param[0], param[1], param[2], param[3], param[4]));
         else if (type == "superellipse") sliders.add(std::make_unique<SuperEllipse>(param[0], param[1], param[2], param[3], param[4], param[5]));
+        else if (type == "rightpolygon") sliders.add(std::make_unique<RPolygon>(param[0], param[1], param[2], param[3], param[4]));
+        else if (type == "smoothrightpolygon") sliders.add(std::make_unique<SmoothRPolygon>(param[0], param[1], param[2], param[3], param[4]));
     }
 
     float calculateAngle_(const std::array<float, 2>& v) {
