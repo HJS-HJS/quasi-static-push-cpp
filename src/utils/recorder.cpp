@@ -27,7 +27,7 @@ std::string Recorder::generateVideoFileName() {
         }
     }
     std::ostringstream ss;
-    ss << saveDirectory << "/" << std::setw(3) << std::setfill('0') << (count + 1) << ".mp4";
+    ss << saveDirectory << "/" << std::setw(4) << std::setfill('0') << (count + 1) << ".mp4";
     return ss.str();
 }
 
@@ -104,27 +104,23 @@ void Recorder::saveMetadata(int frameIndex,
 void Recorder::stopRecording() {
     if (!recording) return;
 
-    // std::cout << "[Recorder] 🛑 Stopping recording. Total frames recorded: " << frameCount << std::endl;
-
     videoWriter.release();
     metadataFile << "\n]";
     metadataFile.close();
     recording = false;
 
-    if (frameCount == 0) {
+    if (frameCount <= 1) {
         // std::cout << "[Recorder] ⚠ No frames recorded. Deleting video & metadata files." << std::endl;
         if (fs::exists(videoFileName)) fs::remove(videoFileName);
         if (fs::exists(metadataFileName)) fs::remove(metadataFileName);
         return;
     }
 
-    // std::cout << "[Recorder] ✅ Video file saved: " << videoFileName << std::endl;
     // checkVideoIntegrity();
 }
 
 void Recorder::checkVideoIntegrity() {
     if (!fs::exists(videoFileName)) {
-        // std::cerr << "[Recorder] ❌ Error: Video file does not exist!" << std::endl;
         return;
     }
 
