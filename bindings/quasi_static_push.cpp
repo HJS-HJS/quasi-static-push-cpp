@@ -302,6 +302,12 @@ public:
         );
     }
 
+    bool renameSavedFiles(const std::string& currentBaseName,
+                          const std::string& newBaseName,
+                          bool appendOldNameToNew) {
+        return recorder->renameSavedFiles(currentBaseName, newBaseName, appendOldNameToNew);
+    }
+
 private:
     SimulationViewer viewer;
     ObjectSlider sliders;
@@ -473,7 +479,7 @@ private:
             }
 
             // grasp
-            transformed_u_ << 0.0f, 0.0f, 0.0f, -0.5f;
+            transformed_u_ << 0.0f, 0.0f, 0.0f, -0.1f;
             float width_ = pushers.q[3];
             int finger = pushers.size();
             while (true) {
@@ -498,7 +504,7 @@ private:
                 if ((param->phi.head(finger).array() < 0.01).any() && (param->phi.head(finger).array() != 0).all()){
                     return 1;
                 } 
-                else if ((width_ - pushers.q[3]) < 0.5 / frame_rate * 0.9){
+                else if ((width_ - pushers.q[3]) < 0.1 / frame_rate * 0.9){
                     return -1;
                 }
                 width_ = pushers.q[3];
@@ -938,7 +944,24 @@ PYBIND11_MODULE(quasi_static_push, m) {
         .def("applyGripperPosition", &PySimulationViewer::applyGripperPosition)
         .def("renderViewer_", &PySimulationViewer::renderViewer_)
         .def("getImageState", &PySimulationViewer::getImageState)
-        .def("keyboard_input", &PySimulationViewer::keyboard_input);
+        .def("keyboard_input", &PySimulationViewer::keyboard_input)
+        .def("renameSavedFiles", &PySimulationViewer::renameSavedFiles);
+        // .def("renameSavedFiles", py::overload_cast<
+        //         std::string&, 
+        //         std::string&, 
+        //         bool
+        //     > (&PySimulationViewer::renameSavedFiles),
+        //     py::arg("currentBaseName"),
+        //     py::arg("newBaseName"),
+        //     py::arg("appendOldNameToNew")
+        // );
+
+//     bool renameSavedFiles(const std::string& currentBaseName,
+//         const std::string& newBaseName,
+//         bool appendOldNameToNew) {
+// recorder->renameSavedFiles(currentBaseName, newBaseName, appendOldNameToNew);
+// }
+
 
     py::class_<Player>(m, "Player", R"pbdoc(
         Player class for replaying recorded simulation data.
