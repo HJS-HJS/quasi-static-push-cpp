@@ -42,11 +42,14 @@ void Recorder::startRecording() {
 
     int fps = static_cast<int>(1.0 / frameTimeSec);
     // int fourcc = cv::VideoWriter::fourcc('H', '2', '6', '4');  // H.264 코덱 사용
-    int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');  // H.264 코덱 사용
+    // int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');  // H.264 코덱 사용
+    int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
+
     videoWriter.open(videoFileName, fourcc, fps, cv::Size(width, height), true);
 
     if (!videoWriter.isOpened()) {
         // std::cerr << "[Recorder] Failed to open video file for recording!" << std::endl;
+        metadataFile.close();  // 💡 누락되었을 가능성 있음
         return;
     }
 
@@ -107,6 +110,7 @@ void Recorder::stopRecording() {
     videoWriter.release();
     metadataFile << "\n]";
     metadataFile.close();
+    videoWriter = cv::VideoWriter();
     recording = false;
 
     if (frameCount <= 1) {
