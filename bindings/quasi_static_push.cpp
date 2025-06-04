@@ -119,7 +119,7 @@ public:
         float newtableWidth,
         float newtableHeight
     ) {
-        mode = -1;
+        mode = 0;
         sliders.clear();
         pushers.clear();
         param.reset();
@@ -156,6 +156,11 @@ public:
 
         stopRecording();
         startRecording();
+
+        Eigen::VectorXf zero_input = Eigen::VectorXf::Zero(4);
+        simulate_(zero_input);
+
+        mode = -1;
     }
 
     /**
@@ -168,7 +173,7 @@ public:
 
         if(u_input.back() >= 0.5f){
             param->update_param();
-            if (!(param->phi.array() < 0).any()){
+            if (!(param->phi.array() < -1e-5).any()){
                 mode = 0;
                 viewer.changeDiagramColor(&bead, "yellow", true, true);
             }
@@ -222,6 +227,19 @@ public:
             image_state_,
             pusher_state_,
             slider_state_
+        };
+    }
+
+    SimulationResult getState() {
+        std::vector<std::string> reasons;
+        
+        return {
+            DONE_NONE,
+            reasons,
+            mode,
+            getImageState(),
+            getPusherState(pushers.q),
+            getSliderState(sliders.get_status())
         };
     }
 
@@ -504,7 +522,7 @@ private:
                 if ((param->phi.head(finger).array() < 0.01).any() && (param->phi.head(finger).array() != 0).all()){
                     return 1;
                 } 
-                else if ((width_ - pushers.q[3]) < 0.1 / frame_rate * 0.9){
+                else if ((width_ - pushers.q[3]) < 0.1 / frame_rate * 0.8){
                     return -1;
                 }
                 width_ = pushers.q[3];
@@ -515,7 +533,7 @@ private:
     }
 
     bool isGraspReady(){
-        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.02){
+        if (std::hypot(pushers.q[0] - sliders[0]->q[0], pushers.q[1] - sliders[0]->q[1]) < 0.025){
             return true;
         }
         else{
@@ -944,6 +962,7 @@ PYBIND11_MODULE(quasi_static_push, m) {
         .def("applyGripperPosition", &PySimulationViewer::applyGripperPosition)
         .def("renderViewer_", &PySimulationViewer::renderViewer_)
         .def("getImageState", &PySimulationViewer::getImageState)
+        .def("getState", &PySimulationViewer::getState)
         .def("keyboard_input", &PySimulationViewer::keyboard_input)
         .def("renameSavedFiles", &PySimulationViewer::renameSavedFiles);
         // .def("renameSavedFiles", py::overload_cast<
