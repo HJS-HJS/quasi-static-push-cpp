@@ -1,0 +1,93 @@
+<?xml version="1.0" ?>
+<robot name="three_finger_gripper">
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder length="0.05" radius="0.03"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <material name="purple">
+        <color rgba="0.2 0.2 1 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+      <origin xyz="0 0 0.05"/>
+    </inertial>
+  </link>
+
+  <!-- 3개의 팔 -->
+  <!-- finger1 -->
+  <link name="finger1">
+    <visual>
+      <geometry>
+        <box size="0.03 0.06 0.10"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <material name="red">
+        <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.03 0.06 0.10"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="finger1_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="finger1"/>
+    <origin xyz="0.129903811 0.075 0" rpy="0 0 2.0944"/>
+  </joint>
+
+  <!-- finger2 -->
+  <link name="finger2">
+    <visual>
+      <geometry>
+        <box size="0.03 0.06 0.10"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.03 0.06 0.10"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="finger2_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="finger2"/>
+    <origin xyz="-0.129903811 0.075 0" rpy="0 0 4.1888"/>
+  </joint>
+
+  <!-- finger3 -->
+  <link name="finger3">
+    <visual>
+      <geometry>
+        <box size="0.03 0.06 0.10"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.03 0.06 0.10"/>
+      </geometry>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    </collision>
+  </link>
+
+  <joint name="finger3_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="finger3"/>
+    <origin xyz="0 -0.15 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>
